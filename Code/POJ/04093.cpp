@@ -40,11 +40,11 @@ int main()
                 else
                 {
                     set<int> intersection;
-                    set_intersection(
+                    set_intersection( // 取交集
                         result.begin(), result.end(),
                         index[i].begin(), index[i].end(),
                         inserter(intersection, intersection.begin()));
-                    result.swap(intersection);
+                    result.swap(intersection); // set swap: O(1), =: O(n), intersection被析构, 所以可以直接用swap
                 }
                 if (result.empty())
                     break;
@@ -55,7 +55,7 @@ int main()
                 if (stat[i] == -1)
                 {
                     set<int> difference;
-                    set_difference(
+                    set_difference( // 取补集
                         result.begin(), result.end(),
                         index[i].begin(), index[i].end(),
                         inserter(difference, difference.begin()));
