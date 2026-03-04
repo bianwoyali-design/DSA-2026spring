@@ -3,6 +3,14 @@
 #include <vector>
 using namespace std;
 
+enum class Direction
+{
+    Left,
+    Right,
+    Up,
+    Down
+};
+
 class Solution
 {
 private:
@@ -11,93 +19,70 @@ private:
 
     bool process(vector<int> &row)
     {
-        bool changed = false; // Dirty flag
         int n = row.size();
-
+        vector<int> nextRow(n, 0);
         int writeIdx = 0;
+        bool changed = false; // Dirty flag
         for (int i = 0; i < n; ++i)
+            if (row[i])
+                nextRow[writeIdx++] = row[i];
+
+        for (int i = 0; i < writeIdx - 1; ++i)
         {
-            if (row[i] != 0)
+            if (nextRow[i] != 0 && nextRow[i] == nextRow[i + 1])
             {
-                if (writeIdx != i)
+                nextRow[i] *= 2;
+                maxVal = max(maxVal, nextRow[i]);
+
+                for (int j = i + 1; j < writeIdx - 1; ++j)
+                    nextRow[j] = nextRow[j + 1];
+                nextRow[--writeIdx] = 0;
+                changed = true;
+            }
+        }
+
+        if (!changed)
+            for (int i = 0; i < n; ++i)
+                if (row[i] != nextRow[i])
+                {
                     changed = true;
-                row[writeIdx++] = row[i];
-            }
-        }
-        for (int i = writeIdx; i < n; ++i)
-        {
-            if (row[i] != 0)
-                changed = true;
-            row[i] = 0;
-        }
+                    break;
+                }
 
-        for (int i = 0; i + 1 < n && row[i] != 0; ++i)
-        {
-            if (row[i] == row[i + 1])
-            {
-                row[i] *= 2;
-                maxVal = max(maxVal, row[i]);
-                changed = true;
-
-                for (int j = i + 1; j + 1 < n; ++j)
-                    row[j] = row[j + 1];
-                row[n - 1] = 0;
-            }
-        }
+        row = move(nextRow);
         return changed;
     }
 
-    bool moveBoard(vector<vector<int>> &grid, int dict)
+    bool moveBoard(vector<vector<int>> &grid, Direction dir)
     {
         int m = grid.size(), n = grid[0].size();
         bool gridChanged = false;
 
-        switch (dict)
-        {
-        case 0: // Left
-            for (auto &g : grid)
-                if (process(g))
-                    gridChanged = true;
-            break;
-
-        case 1: // Right
+        if (dir == Direction::Left || dir == Direction::Right)
             for (auto &g : grid)
             {
-                reverse(g.begin(), g.end());
+                if (dir == Direction::Right)
+                    reverse(g.begin(), g.end());
                 if (process(g))
                     gridChanged = true;
-                reverse(g.begin(), g.end());
+                if (dir == Direction::Right)
+                    reverse(g.begin(), g.end());
             }
-            break;
-
-        case 2: // Up
+        else
             for (int j = 0; j < n; ++j)
             {
                 vector<int> v;
                 for (auto &g : grid)
                     v.emplace_back(g[j]);
+                if (dir == Direction::Down)
+                    reverse(v.begin(), v.end());
                 if (process(v))
                     gridChanged = true;
+                if (dir == Direction::Down)
+                    reverse(v.begin(), v.end());
                 for (int i = 0; i < m; ++i)
                     grid[i][j] = v[i];
             }
-            break;
-
-        case 3: // Down
-            for (int j = 0; j < n; ++j)
-            {
-                vector<int> v;
-                for (auto &g : grid)
-                    v.emplace_back(g[j]);
-                reverse(v.begin(), v.end());
-                if (process(v))
-                    gridChanged = true;
-                reverse(v.begin(), v.end());
-                for (int i = 0; i < m; ++i)
-                    grid[i][j] = v[i];
-            }
-            break;
-        }
 
         return gridChanged;
     }
@@ -107,22 +92,23 @@ private:
         if (steps == p)
             return;
 
-        for (int i = 0; i < 4; ++i)
-        {
-            vector<vector<int>> nextGrid = grid;
+        vector<vector<int>> backup = grid;
+        for (auto dir : {Direction::Left, Direction::Right, Direction::Up, Direction::Down})
             // 如果棋盘发生了变化，才继续向下搜索
-            if (moveBoard(nextGrid, i))
-                dfs(move(nextGrid), steps + 1);
-            // move()直接移动，直接把 nextGrid 的所有权移交给下一层递归函数，极大地减少了内存分配和数据复制带来的延迟
-        }
+            if (moveBoard(grid, dir))
+            {
+                dfs(move(grid), steps + 1);
+                grid = backup;
+            }
+        // move()直接移动，直接把 grid 的所有权移交给下一层递归函数，极大地减少了内存分配和数据复制带来的延迟
     }
 
 public:
-    Solution(int p) : p(p), maxVal(0) {}
+    explicit Solution(int p) : p(p), maxVal(0) {}
 
     int maximumPoint(vector<vector<int>> grid)
     {
-        for (auto &row : grid)
+        for (const auto &row : grid)
             for (int val : row)
                 maxVal = max(maxVal, val);
         dfs(grid, 0);
