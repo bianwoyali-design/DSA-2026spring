@@ -8,19 +8,33 @@ class Solution
 public:
     bool hasAllCodes(string s, int k)
     {
-        if (s.size() < (1 << k) + k - 1)
+        int total_needed = 1 << k;
+        if (s.size() < (size_t)total_needed + k - 1)
             return false;
 
-        int num = stoi(s.substr(0, k), nullptr, 2);
-        unordered_set<int> hash = {num};
+        vector<bool> seen(total_needed, false);
 
-        for (int i = 1; i + k <= s.size(); ++i)
+        int x = 0;
+        int cnt = 0;
+        int MASK = total_needed - 1;
+
+        for (int i = 0; i < k - 1; ++i)
         {
-            num = (num - ((s[i - 1] - '0') << (k - 1))) * 2 + (s[i + k - 1] - '0');
-            hash.insert(num);
+            x = (x << 1) | (s[i] & 1);
         }
 
-        return hash.size() == (1 << k);
+        for (int i = k - 1; i < s.length(); ++i)
+        {
+            x = ((x << 1) & MASK) | (s[i] & 1);
+            if (!seen[x])
+            {
+                seen[x] = true;
+                if (++cnt == total_needed)
+                    return true;
+            }
+        }
+
+        return false;
     }
 };
 
