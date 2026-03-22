@@ -1,76 +1,84 @@
+#include <bitset>
 #include <iostream>
-#include <algorithm>
 #include <vector>
-#include <set>
-using namespace std;
 
-int main()
-{
-    cin.tie(nullptr)->sync_with_stdio(false);
+class InvertedIndex {
+  int n;
+  constexpr static int MAXN = 10001;
+  std::vector<std::bitset<MAXN>> files;
 
-    int n;
-    cin >> n;
-    vector<set<int>> index(n);
-    for (int i = 0; i < n; ++i)
-    {
-        int c;
-        cin >> c;
-        while (c--)
-        {
-            int idx;
-            cin >> idx;
-            index[i].insert(idx);
-        }
+public:
+  InvertedIndex(const InvertedIndex &) = default;
+  InvertedIndex(InvertedIndex &&) = default;
+  auto operator=(const InvertedIndex &) -> InvertedIndex & = default;
+  auto operator=(InvertedIndex &&) -> InvertedIndex & = default;
+  explicit InvertedIndex(int n) : n(n), files(n) {}
+
+  auto init() -> void;
+
+  auto search() -> void;
+};
+
+auto InvertedIndex::init() -> void {
+  for (int i = 0; i < n; ++i) {
+    int c;
+    std::cin >> c;
+    while (c--) {
+      int id;
+      std::cin >> id;
+      files[i].set(id);
     }
+  }
+}
 
-    int m;
-    cin >> m;
-    while (m--)
-    {
-        vector<int> stat(n);
-        for (auto &s : stat)
-            cin >> s;
+auto InvertedIndex::search() -> void {
+  std::vector<int> query(n);
 
-        set<int> result;
-        for (int i = 0; i < n; ++i)
-            if (stat[i] == 1)
-            {
-                if (result.empty())
-                    result = index[i];
-                else
-                {
-                    set<int> intersection;
-                    set_intersection( // 取交集
-                        result.begin(), result.end(),
-                        index[i].begin(), index[i].end(),
-                        inserter(intersection, intersection.begin()));
-                    result.swap(intersection); // set swap: O(1), =: O(n), intersection被析构, 所以可以直接用swap
-                }
-                if (result.empty())
-                    break;
-            }
+  int first = -1;
+  for (int i = 0; i < n; ++i) {
+    std::cin >> query[i];
+    if (first == -1 && query[i] == 1)
+      first = i;
+  }
 
-        if (!result.empty())
-            for (int i = 0; i < n; ++i)
-                if (stat[i] == -1)
-                {
-                    set<int> difference;
-                    set_difference( // 取补集
-                        result.begin(), result.end(),
-                        index[i].begin(), index[i].end(),
-                        inserter(difference, difference.begin()));
-                    result.swap(difference);
-                    if (result.empty())
-                        break;
-                }
+  std::bitset<MAXN> a;
+  if (first != -1) {
+    a = files[first];
+    for (int i = first + 1; i < n; ++i)
+      if (query[i] == 1)
+        a &= files[i];
+  }
 
-        if (result.empty())
-            cout << "NOT FOUND";
-        else
-            for (const auto &a : result)
-                cout << a << ' ';
-        cout << '\n';
+  std::bitset<MAXN> b;
+  for (int i = 0; i < n; ++i)
+    if (query[i] == -1)
+      b |= files[i];
+
+  std::bitset<MAXN> c = a & (~b);
+
+  if (c.none())
+    std::cout << "NOT FOUND\n";
+  else {
+    for (int i = 0; i < MAXN; ++i) {
+      if (c[i])
+        std::cout << i << ' ';
     }
+    std::cout << '\n';
+  }
+}
 
-    return 0;
+auto main() -> int {
+  std::cin.tie(nullptr)->sync_with_stdio(false);
+
+  int n;
+  std::cin >> n;
+
+  InvertedIndex II(n);
+
+  II.init();
+  
+  int m;
+  std::cin >> m;
+  while (m--)
+    II.search();
 }
