@@ -1,64 +1,51 @@
-#include <iostream>
-#include <vector>
-#include <unordered_map>
+#include <iterator>
 #include <list>
-using namespace std;
+#include <print>
+#include <unordered_map>
+#include <utility>
 
-class LRUCache
-{
+class LRUCache {
 public:
-    LRUCache(int capacity) : capacity(capacity) {}
+  explicit LRUCache(int capacity) : capacity(capacity) {}
 
-    int get(int key)
-    {
-        if (mp.contains(key))
-        {
-            auto it = mp[key];
-            cache.splice(cache.begin(), cache, it);
-            return it->second;
-        }
-        return -1;
-    }
+  auto get(int key) -> int {
+    auto it = hash.find(key);
+    if (it == hash.end())
+      return -1;
+    cache.splice(cache.begin(), cache, it->second);
+    return it->second->second;
+  }
 
-    void put(int key, int value)
-    {
-        if (mp.contains(key))
-        {
-            auto it = mp[key];
-            cache.splice(cache.begin(), cache, it);
-            it->second = value;
-        }
-        else
-        {
-            if (cache.size() == capacity)
-            {
-                auto it = prev(cache.end());
-                mp.erase(it->first);
-                cache.pop_back();
-            }
-            mp[key] = cache.emplace(cache.begin(), key, value);
-        }
+  void put(int key, int value) {
+    auto it = hash.find(key);
+    if (it != hash.end()) {
+      it->second->second = value;
+      cache.splice(cache.begin(), cache, it->second);
+    } else {
+      if (cache.size() == capacity) {
+        auto del = std::prev(cache.end());
+        hash.erase(del->first);
+        cache.pop_back();
+      }
+      hash[key] = cache.emplace(cache.begin(), key, value);
     }
+  }
 
 private:
-    const int capacity;
-    list<pair<int, int>> cache;
-    unordered_map<int, list<pair<int, int>>::iterator> mp;
+  int capacity;
+  std::list<std::pair<int, int>> cache;
+  std::unordered_map<int, std::list<std::pair<int, int>>::iterator> hash;
 };
 
-int main()
-{
-    cin.tie(nullptr)->sync_with_stdio(false);
-
-    LRUCache *lRUCache = new LRUCache(2);
-    lRUCache->put(1, 1);              // 缓存是 {1=1}
-    lRUCache->put(2, 2);              // 缓存是 {1=1, 2=2}
-    cout << lRUCache->get(1) << '\n'; // 返回 1
-    lRUCache->put(3, 3);              // 该操作会使得关键字 2 作废，缓存是 {1=1, 3=3}
-    cout << lRUCache->get(2) << '\n'; // 返回 -1 (未找到)
-    lRUCache->put(4, 4);              // 该操作会使得关键字 1 作废，缓存是 {4=4, 3=3}
-    cout << lRUCache->get(1) << '\n'; // 返回 -1 (未找到)
-    cout << lRUCache->get(3) << '\n'; // 返回 3
-    cout << lRUCache->get(4) << '\n'; // 返回 4
-    return 0;
+auto main() -> int {
+  auto *lRUCache = new LRUCache(2);
+  lRUCache->put(1, 1);                  // 缓存是 {1=1}
+  lRUCache->put(2, 2);                  // 缓存是 {1=1, 2=2}
+  std::println("{}", lRUCache->get(1)); // 返回 1
+  lRUCache->put(3, 3); // 该操作会使得关键字 2 作废，缓存是 {1=1, 3=3}
+  std::println("{}", lRUCache->get(2)); // 返回 -1 (未找到)
+  lRUCache->put(4, 4); // 该操作会使得关键字 1 作废，缓存是 {4=4, 3=3}
+  std::println("{}", lRUCache->get(1)); // 返回 -1 (未找到)
+  std::println("{}", lRUCache->get(3)); // 返回 3
+  std::println("{}", lRUCache->get(4)); // 返回 4
 }
