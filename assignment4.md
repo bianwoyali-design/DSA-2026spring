@@ -266,7 +266,6 @@ auto main() -> int {
     std::cout << '\n';
   }
 }
-
 ```
 
 > 共用时30min
