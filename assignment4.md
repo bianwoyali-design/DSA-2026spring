@@ -33,7 +33,7 @@ hash table, linked list, two pinters, https://leetcode.cn/problems/intersection-
 
 代码：
 
-```python
+```cpp
 struct ListNode {
   int val;
   ListNode *next{};
@@ -73,7 +73,7 @@ recursion, linked list, https://leetcode.cn/problems/reverse-linked-list/
 
 代码：
 
-```python
+```cpp
 struct ListNode {
   int val;
   ListNode *next;
@@ -129,7 +129,7 @@ linked list, two pointers, https://leetcode.cn/problems/palindrome-linked-list/
 
 代码：
 
-```python
+```cpp
 struct ListNode {
   int val;
   ListNode *next;
@@ -190,7 +190,7 @@ stack, http://cs101.openjudge.cn/practice/24591/
 
 代码：
 
-```python
+```cpp
 #include <cctype>
 #include <iostream>
 #include <stack>
@@ -287,7 +287,7 @@ hash table, doubly-linked list, https://leetcode.cn/problems/lru-cache/
 
 代码
 
-```python
+```cpp
 #include <iterator>
 #include <list>
 #include <print>
@@ -360,9 +360,9 @@ monotonic queue, https://www.luogu.com.cn/problem/P2698
 
 代码
 
-```python
+```cpp
 #include <algorithm>
-#include <climits>
+#include <limits>
 #include <print>
 #include <iostream>
 #include <deque>
@@ -382,7 +382,7 @@ auto main() -> int {
   std::deque<int> maxq, minq;
 
   int l = 0, r = 0;
-  int res = INT_MAX / 2;
+  int res = std::numeric_limits<int>::max();
   while (r < N) {
     while (!maxq.empty() &&
            coordinates[maxq.back()].second <= coordinates[r].second)
@@ -405,7 +405,7 @@ auto main() -> int {
     ++r;
   }
 
-  if (res == INT_MAX / 2)
+  if (res == std::numeric_limits<int>::max())
     std::println("-1");
   else
     std::println("{}", res);
