@@ -423,7 +423,41 @@ auto main() -> int {
 
 <mark>如果发现作业题目相对简单，有否寻找额外的练习题目，如“数算2026spring每日选做”、LeetCode、Codeforces、洛谷等网站上的题目。</mark>
 
+### POJ 02406
 
+```cpp
+#include <iostream>
+#include <vector>
+
+auto main() -> int {
+  std::cin.tie(nullptr)->sync_with_stdio(false);
+
+  std::string s;
+  while (std::cin >> s) {
+    if (s == ".")
+      break;
+
+    int n = static_cast<int>(s.length());
+    std::vector<int> lps(n, 0);
+    int length = 0;
+    for (int i = 1; i < n; ++i) {
+      while (length > 0 && s[i] != s[length])
+        length = lps[length - 1];
+      if (s[i] == s[length])
+        ++length;
+      lps[i] = length;
+    }
+
+    int p = n - lps.back();
+    if (n % p == 0)
+      std::cout << n / p << '\n';
+    else
+      std::cout << 1 << '\n';
+  }
+}
+```
+
+<img src="https://raw.githubusercontent.com/bianwoyali-design/Img/main/Img/20260325213735028.png"/>
 
 ### POJ 03129
 
