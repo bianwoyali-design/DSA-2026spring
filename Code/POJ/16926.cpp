@@ -87,15 +87,17 @@ public:
   std::vector<WeaponInfo> m_weapons;
 
   void before_fight() {
-    std::ranges::sort(m_weapons, [](const WeaponInfo &a, const WeaponInfo &b) {
-      if (a.type == b.type)
-        return a.usage < b.usage;
-      return std::to_underlying(a.type) < std::to_underlying(b.type);
-    });
+    std::ranges::sort(
+        m_weapons, [](const WeaponInfo &a, const WeaponInfo &b) -> bool {
+          if (a.type == b.type)
+            return a.usage < b.usage;
+          return std::to_underlying(a.type) < std::to_underlying(b.type);
+        });
   }
 
   void cleanup_weapons() {
-    std::erase_if(m_weapons, [](const WeaponInfo &w) { return w.usage <= 0; });
+    std::erase_if(m_weapons,
+                  [](const WeaponInfo &w) -> bool { return w.usage <= 0; });
     m_iter = 0;
   }
 
