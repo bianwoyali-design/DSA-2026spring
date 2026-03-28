@@ -43,7 +43,6 @@ struct Config {
   int id;
   int hp;
   int atk;
-  int pos;
   int res_m;
   WarriorType type;
   std::string_view headquarter;
@@ -52,10 +51,9 @@ struct Config {
 class Warrior {
 public:
   explicit Warrior(const Config &cfg)
-      : m_id(cfg.id), m_hp(cfg.hp), m_pos(cfg.pos), m_atk(cfg.atk),
+      : m_id(cfg.id), m_hp(cfg.hp), m_atk(cfg.atk),
         m_headquarter(cfg.headquarter), m_type(cfg.type) {}
 
-  void adjust_pos(int pos) { m_pos = pos; }
   void get_damage(int damage) {
     m_hp -= damage;
     if (m_hp < 0)
@@ -64,7 +62,6 @@ public:
 
   [[nodiscard]] auto get_id() const noexcept -> int { return m_id; }
   [[nodiscard]] auto get_hp() const noexcept -> int { return m_hp; }
-  [[nodiscard]] auto get_pos() const noexcept -> int { return m_pos; }
   [[nodiscard]] auto get_atk() const noexcept -> int { return m_atk; }
   [[nodiscard]] auto get_type() const noexcept -> WarriorType { return m_type; }
   [[nodiscard]] auto get_headquarter_name() const noexcept -> std::string_view {
@@ -119,7 +116,7 @@ public:
   void report_weapons(std::string_view time) const noexcept {
     std::array<int, 3> counts{0, 0, 0};
     for (const auto &w : m_weapons) {
-      counts[static_cast<int>(w.type)]++;
+      ++counts[static_cast<int>(w.type)];
     }
 
     std::cout << time << " " << get_headquarter_name() << " "
@@ -136,7 +133,6 @@ public:
 protected:
   int m_id;
   int m_hp;
-  int m_pos;
   int m_atk;
   WarriorType m_type;
   const int m_max_weapons = 10;
@@ -296,7 +292,7 @@ public:
   void down_loyalty() { m_loyalty -= m_K; }
 
   void print_extra_info() const noexcept override {
-    std::cout << "It's loyalty is " << m_loyalty << '\n';
+    std::cout << "Its loyalty is " << m_loyalty << '\n';
   }
 
   void attack(Warrior *obj) noexcept override {
@@ -337,6 +333,7 @@ public:
     if (!obj)
       return;
 
+    before_fight();
     obj->before_fight();
     if (!obj->m_weapons.empty() && m_weapons.size() < m_max_weapons) {
       int snatch_num = 0;
@@ -421,28 +418,23 @@ public:
 
     const auto &order = get_order();
 
-    for (int i = 0; i < 5; ++i) {
-      WarriorType type = order[m_iter];
-      int cost = m_costs[static_cast<int>(type)];
+    WarriorType type = order[m_iter];
+    int cost = m_costs[static_cast<int>(type)];
 
-      if (m_total_m >= cost) {
-        m_total_m -= cost;
-        ++m_counts[static_cast<int>(type)];
-        int id = ++m_total_count;
-        int atk = m_atk[static_cast<int>(type)];
-        int pos = (get_name() == "red") ? 0 : m_N + 1;
+    if (m_total_m >= cost) {
+      m_total_m -= cost;
+      ++m_counts[static_cast<int>(type)];
+      int id = ++m_total_count;
+      int atk = m_atk[static_cast<int>(type)];
 
-        auto warrior = create_warrior(id, type, cost, atk, pos);
+      auto warrior = create_warrior(id, type, cost, atk);
 
-        log_production(time, type, cost);
+      log_production(time, type, cost);
 
-        warrior->print_extra_info();
-
-        m_iter = (m_iter + 1) % 5;
-        return warrior;
-      }
+      warrior->print_extra_info();
 
       m_iter = (m_iter + 1) % 5;
+      return warrior;
     }
 
     m_stopped = true;
@@ -465,17 +457,16 @@ protected:
 private:
   void log_production(std::string_view time, WarriorType type, int cost) const {
     auto type_idx = static_cast<int>(type);
-    std::cout << time << get_name() << ' ' << WARRIOR_NAMES[type_idx] << ' '
+    std::cout << time << ' ' << get_name() << ' ' << WARRIOR_NAMES[type_idx] << ' '
               << m_total_count << " born\n";
   }
 
   [[nodiscard]] auto create_warrior(int id, WarriorType type, int cost,
-                                    const int atk, int pos) const noexcept
+                                    const int atk) const noexcept
       -> std::unique_ptr<Warrior> {
     Config cfg = {.id = id,
                   .hp = cost,
                   .atk = atk,
-                  .pos = pos,
                   .res_m = m_total_m,
                   .type = type,
                   .headquarter = get_name()};
@@ -540,59 +531,72 @@ public:
   [[nodiscard]] auto blue_leaves() -> std::unique_ptr<Warrior> {
     return std::move(m_blue_warrior);
   }
-
+  void produce_red(std::unique_ptr<Warrior> w) { m_red_warrior = std::move(w); }
+  void produce_blue(std::unique_ptr<Warrior> w) {
+    m_blue_warrior = std::move(w);
+  }
   void accept_incoming_red(std::unique_ptr<Warrior> w) {
     m_incoming_red = std::move(w);
   }
-
   void accept_incoming_blue(std::unique_ptr<Warrior> w) {
     m_incoming_blue = std::move(w);
   }
 
-  void check_lion(std::string_view time) {
-    auto red_lion = dynamic_cast<Lion *>(m_red_warrior.get());
-    auto blue_lion = dynamic_cast<Lion *>(m_blue_warrior.get());
-
-    if (red_lion && !red_lion->is_loyal()) {
-      std::cout << time << " red lion " << red_lion->get_id() << " ran away\n";
-      m_red_warrior = nullptr;
+  void check_lion(std::string_view time, int N) {
+    if (m_red_warrior && m_red_warrior->get_type() == WarriorType::LION) {
+      if (m_pos < N + 1) {
+        auto *lion = static_cast<Lion *>(m_red_warrior.get());
+        if (!lion->is_loyal()) {
+          std::cout << time << " red lion " << lion->get_id() << " ran away\n";
+          m_red_warrior = nullptr;
+        }
+      }
     }
-    if (blue_lion && !blue_lion->is_loyal()) {
-      std::cout << time << " blue lion " << blue_lion->get_id()
-                << " ran away\n";
-      m_blue_warrior = nullptr;
+
+    if (m_blue_warrior && m_blue_warrior->get_type() == WarriorType::LION) {
+      if (m_pos > 0) {
+        auto *lion = static_cast<Lion *>(m_blue_warrior.get());
+        if (!lion->is_loyal()) {
+          std::cout << time << " blue lion " << lion->get_id() << " ran away\n";
+          m_blue_warrior = nullptr;
+        }
+      }
     }
   }
 
-  void commit_arrivals(std::string_view time) {
+  void commit_arrivals(std::string_view time, int N) {
     if (m_incoming_red) {
       m_red_warrior = std::move(m_incoming_red);
 
-      if (auto red_iceman = dynamic_cast<Iceman *>(m_red_warrior.get()))
-        red_iceman->move_take_blood();
-      if (auto red_lion = dynamic_cast<Lion *>(m_red_warrior.get()))
-        red_lion->down_loyalty();
+      if (m_red_warrior->get_type() == WarriorType::ICEMAN)
+        static_cast<Iceman *>(m_red_warrior.get())->move_take_blood();
+      else if (m_red_warrior->get_type() == WarriorType::LION)
+        static_cast<Lion *>(m_red_warrior.get())->down_loyalty();
 
-      std::cout << time << ' ' << m_red_warrior->get_headquarter_name() << ' '
-                << WARRIOR_NAMES[static_cast<int>(m_red_warrior->get_type())]
-                << ' ' << m_red_warrior->get_id() << " marched to city "
-                << m_pos << " with " << m_red_warrior->get_hp()
-                << " elements and force " << m_red_warrior->get_atk() << '\n';
+      if (m_pos != N + 1)
+        std::cout << time << ' ' << m_red_warrior->get_headquarter_name() << ' '
+                  << WARRIOR_NAMES[static_cast<int>(m_red_warrior->get_type())]
+                  << ' ' << m_red_warrior->get_id() << " marched to city "
+                  << m_pos << " with " << m_red_warrior->get_hp()
+                  << " elements and force " << m_red_warrior->get_atk() << '\n';
     }
 
     if (m_incoming_blue) {
       m_blue_warrior = std::move(m_incoming_blue);
 
-      if (auto blue_iceman = dynamic_cast<Iceman *>(m_blue_warrior.get()))
-        blue_iceman->move_take_blood();
-      if (auto blue_lion = dynamic_cast<Lion *>(m_blue_warrior.get()))
-        blue_lion->down_loyalty();
+      if (m_blue_warrior->get_type() == WarriorType::ICEMAN)
+        static_cast<Iceman *>(m_blue_warrior.get())->move_take_blood();
+      else if (m_blue_warrior->get_type() == WarriorType::LION)
+        static_cast<Lion *>(m_blue_warrior.get())->down_loyalty();
 
-      std::cout << time << ' ' << m_blue_warrior->get_headquarter_name() << ' '
-                << WARRIOR_NAMES[static_cast<int>(m_blue_warrior->get_type())]
-                << ' ' << m_blue_warrior->get_id() << " marched to city "
-                << m_pos << " with " << m_blue_warrior->get_hp()
-                << " elements and force " << m_blue_warrior->get_atk() << '\n';
+      if (m_pos != 0)
+        std::cout << time << ' ' << m_blue_warrior->get_headquarter_name()
+                  << ' '
+                  << WARRIOR_NAMES[static_cast<int>(m_blue_warrior->get_type())]
+                  << ' ' << m_blue_warrior->get_id() << " marched to city "
+                  << m_pos << " with " << m_blue_warrior->get_hp()
+                  << " elements and force " << m_blue_warrior->get_atk()
+                  << '\n';
     }
   }
 
@@ -600,13 +604,15 @@ public:
     if (!m_red_warrior || !m_blue_warrior)
       return;
 
-    auto red_wolf = dynamic_cast<Wolf *>(m_red_warrior.get());
-    auto blue_wolf = dynamic_cast<Wolf *>(m_blue_warrior.get());
+    bool red_is_wolf = (m_red_warrior->get_type() == WarriorType::WOLF);
+    bool blue_is_wolf = (m_blue_warrior->get_type() == WarriorType::WOLF);
 
-    if (red_wolf && !blue_wolf)
-      red_wolf->snatch(m_blue_warrior.get(), m_pos, time);
-    else if (!red_wolf && blue_wolf)
-      blue_wolf->snatch(m_red_warrior.get(), m_pos, time);
+    if (red_is_wolf && !blue_is_wolf)
+      static_cast<Wolf *>(m_red_warrior.get())
+          ->snatch(m_blue_warrior.get(), m_pos, time);
+    else if (!red_is_wolf && blue_is_wolf)
+      static_cast<Wolf *>(m_blue_warrior.get())
+          ->snatch(m_red_warrior.get(), m_pos, time);
   }
 
   void fight(std::string_view time) {
@@ -649,7 +655,9 @@ public:
     }
 
     handle_result_and_logs(time);
+  }
 
+  void dragon_yell(std::string_view time) {
     if (m_red_warrior && m_red_warrior->get_type() == WarriorType::DRAGON) {
       auto d = static_cast<Dragon *>(m_red_warrior.get());
       if (d->get_hp() > 0)
@@ -662,7 +670,8 @@ public:
     }
   }
 
-  void check_hq_arrival(std::string_view time, int total_cities) {
+  [[nodiscard]] auto check_hq_arrival(std::string_view time, int total_cities)
+      -> bool {
     if (m_pos == 0 && m_blue_warrior) {
       std::cout << time << " blue "
                 << WARRIOR_NAMES[static_cast<int>(m_blue_warrior->get_type())]
@@ -670,9 +679,10 @@ public:
                 << " reached red headquarter with " << m_blue_warrior->get_hp()
                 << " elements and force " << m_blue_warrior->get_atk() << "\n";
 
-      m_enemy_count++;
+      ++m_enemy_count;
       if (m_enemy_count >= 1) {
         std::cout << time << " red headquarter was taken\n";
+        return true;
       }
     }
 
@@ -683,11 +693,13 @@ public:
                 << " reached blue headquarter with " << m_red_warrior->get_hp()
                 << " elements and force " << m_red_warrior->get_atk() << "\n";
 
-      m_enemy_count++;
+      ++m_enemy_count;
       if (m_enemy_count >= 1) {
         std::cout << time << " blue headquarter was taken\n";
+        return true;
       }
     }
+    return false;
   }
 
   void report_warrior_status(std::string_view time) const {
@@ -790,7 +802,7 @@ auto main() -> int {
       std::cin >> atk;
     }
 
-    std::cout << "Case:" << caseIdx << '\n';
+    std::cout << "Case " << caseIdx << ":\n";
 
     std::array<std::unique_ptr<Headquarter>, 2> bases = {
         std::make_unique<RedHeadquarter>(warrior_ATK, M, warrior_HP, N),
@@ -802,23 +814,95 @@ auto main() -> int {
       cities.emplace_back(i);
 
     int hour = 0;
-    while (!bases[0]->is_stopped() || !bases[1]->is_stopped()) {
+    while (true) {
+      /*-----------------------------------------------------------------------------------------*/
       int minunte = 0;
 
+      if (hour * 60 + minunte > T)
+        break;
       char m_buf[10];
       int len = std::snprintf(m_buf, sizeof(m_buf), "%03d:%02d", hour, minunte);
       std::string_view time = std::string_view(m_buf, len);
 
-      cities[0].accept_incoming_red(bases[0]->step(time));
-      cities[N + 1].accept_incoming_blue(bases[1]->step(time));
+      cities[0].produce_red(bases[0]->step(time));
+      cities[N + 1].produce_blue(bases[1]->step(time));
+      /*-----------------------------------------------------------------------------------------*/
+      minunte += 5;
 
-      minunte += 10;
+      if (hour * 60 + minunte > T)
+        break;
+      len = std::snprintf(m_buf, sizeof(m_buf), "%03d:%02d", hour, minunte);
+      time = std::string_view(m_buf, len);
+
+      for (int i = 0; i < N + 2; ++i)
+        cities[i].check_lion(time, N);
+      /*-----------------------------------------------------------------------------------------*/
+      minunte += 5;
+
+      if (hour * 60 + minunte > T)
+        break;
       len = std::snprintf(m_buf, sizeof(m_buf), "%03d:%02d", hour, minunte);
       time = std::string_view(m_buf, len);
 
       for (int i = 0; i < N + 2; ++i) {
-        if (i == 0 || i == N + 1)
-          cities[i].commit_arrivals(time);
+        if (cities[i].get_red() && i < N + 1)
+          cities[i + 1].accept_incoming_red(cities[i].red_leaves());
+        if (cities[i].get_blue() && i > 0)
+          cities[i - 1].accept_incoming_blue(cities[i].blue_leaves());
+      }
+
+      for (int i = 0; i < N + 2; ++i)
+        cities[i].commit_arrivals(time, N);
+
+      bool red_is_taken = cities[0].check_hq_arrival(time, N);
+      bool blue_is_taken = cities[N + 1].check_hq_arrival(time, N);
+      if (red_is_taken || blue_is_taken)
+        break;
+      /*-----------------------------------------------------------------------------------------*/
+      minunte += 25;
+
+      if (hour * 60 + minunte > T)
+        break;
+      len = std::snprintf(m_buf, sizeof(m_buf), "%03d:%02d", hour, minunte);
+      time = std::string_view(m_buf, len);
+
+      for (int i = 1; i <= N; ++i) {
+        cities[i].wolf_snatch(time);
+      }
+      /*-----------------------------------------------------------------------------------------*/
+      minunte += 5;
+
+      if (hour * 60 + minunte > T)
+        break;
+      len = std::snprintf(m_buf, sizeof(m_buf), "%03d:%02d", hour, minunte);
+      time = std::string_view(m_buf, len);
+
+      for (int i = 1; i <= N; ++i)
+        cities[i].fight(time);
+
+      for (int i = 1; i <= N; ++i)
+        cities[i].dragon_yell(time);
+
+      /*-----------------------------------------------------------------------------------------*/
+      minunte += 10;
+
+      if (hour * 60 + minunte > T)
+        break;
+      len = std::snprintf(m_buf, sizeof(m_buf), "%03d:%02d", hour, minunte);
+      time = std::string_view(m_buf, len);
+
+      bases[0]->report_elements(time);
+      bases[1]->report_elements(time);
+      /*-----------------------------------------------------------------------------------------*/
+      minunte += 5;
+
+      if (hour * 60 + minunte > T)
+        break;
+      len = std::snprintf(m_buf, sizeof(m_buf), "%03d:%02d", hour, minunte);
+      time = std::string_view(m_buf, len);
+
+      for (int i = 0; i < N + 2; ++i) {
+        cities[i].report_warrior_status(time);
       }
 
       ++hour;
