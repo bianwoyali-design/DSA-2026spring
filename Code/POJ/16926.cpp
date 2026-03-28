@@ -2,12 +2,14 @@
 #include <array>
 #include <cstddef>
 #include <cstdint>
-#include <cstdio>
-#include <cstring>
-#include <ios>
+#include <format>
 #include <iostream>
 #include <memory>
+#include <print>
+#include <ranges>
+#include <string>
 #include <string_view>
+#include <utility>
 #include <vector>
 
 enum class WarriorType : std::uint8_t {
@@ -19,7 +21,7 @@ enum class WarriorType : std::uint8_t {
   COUNT
 };
 
-constexpr int WARRIOR_COUNT = static_cast<int>(WarriorType::COUNT);
+constexpr int WARRIOR_COUNT = std::to_underlying(WarriorType::COUNT);
 
 constexpr std::array<std::string_view, WARRIOR_COUNT> WARRIOR_NAMES = {
     "dragon", "ninja", "iceman", "lion", "wolf"};
@@ -34,7 +36,7 @@ constexpr std::array<WarriorType, 5> BLUE_ORDER = {
 
 enum class WeaponType : std::uint8_t { SWORD = 0, BOMB, ARROW, COUNT };
 
-constexpr int WEAPON_COUNT = static_cast<int>(WeaponType::COUNT);
+constexpr int WEAPON_COUNT = std::to_underlying(WeaponType::COUNT);
 
 constexpr std::array<std::string_view, WEAPON_COUNT> WEAPON_NAMES = {
     "sword", "bomb", "arrow"};
@@ -85,27 +87,22 @@ public:
   std::vector<WeaponInfo> m_weapons;
 
   void before_fight() {
-    std::sort(m_weapons.begin(), m_weapons.end(),
-              [](const WeaponInfo a, const WeaponInfo b) -> bool {
-                if (a.type == b.type)
-                  return a.usage < b.usage; // Arrow用过的排前面
-                return a.type < b.type;
-              });
+    std::ranges::sort(m_weapons, [](const WeaponInfo &a, const WeaponInfo &b) {
+      if (a.type == b.type)
+        return a.usage < b.usage;
+      return std::to_underlying(a.type) < std::to_underlying(b.type);
+    });
   }
 
   void cleanup_weapons() {
-    m_weapons.erase(std::remove_if(m_weapons.begin(), m_weapons.end(),
-                                   [](const WeaponInfo &w) -> bool {
-                                     return w.usage <= 0;
-                                   }),
-                    m_weapons.end());
+    std::erase_if(m_weapons, [](const WeaponInfo &w) { return w.usage <= 0; });
     m_iter = 0;
   }
 
   void loot(Warrior *obj) {
     if (!obj)
       return;
-    int size = static_cast<int>(obj->m_weapons.size());
+    int size = static_cast<std::uint8_t>(obj->m_weapons.size());
     int i = 0;
     for (; i < size && m_weapons.size() < m_max_weapons &&
            obj->m_weapons[i].type != WeaponType::ARROW;
@@ -123,12 +120,12 @@ public:
     std::array<int, 3> counts{0, 0, 0};
     for (const auto &w : m_weapons) {
       if (w.usage > 0)
-        ++counts[static_cast<int>(w.type)];
+        ++counts[std::to_underlying(w.type)];
     }
-    std::cout << time << " " << get_headquarter_name() << " "
-              << WARRIOR_NAMES[static_cast<int>(get_type())] << " " << m_id
-              << " has " << counts[0] << " sword " << counts[1] << " bomb "
-              << counts[2] << " arrow and " << m_hp << " elements\n";
+    std::println("{} {} {} {} has {} sword {} bomb {} arrow and {} elements",
+                 time, get_headquarter_name(),
+                 WARRIOR_NAMES[std::to_underlying(get_type())], m_id, counts[0],
+                 counts[1], counts[2], m_hp);
   }
 
   virtual void print_extra_info() const noexcept = 0;
@@ -137,8 +134,8 @@ public:
     if (!obj || m_weapons.empty() || m_hp == 0)
       return;
 
-    int n = static_cast<int>(m_weapons.size());
-    for (int i = 0; i < n; ++i) {
+    int n = static_cast<std::uint8_t>(m_weapons.size());
+    for (int i : std::views::iota(0, n)) {
       auto &weapon = m_weapons[m_iter];
 
       if (weapon.usage > 0) {
@@ -197,8 +194,8 @@ public:
         static_cast<WeaponType>(cfg.id % 3) == WeaponType::ARROW ? 2 : 1);
   }
   void yell(std::string_view time, int pos) const noexcept override {
-    std::cout << time << ' ' << get_headquarter_name() << " dragon " << get_id()
-              << " yelled in city " << pos << '\n';
+    std::println("{} {} dragon {} yelled in city {}", time,
+                 get_headquarter_name(), get_id(), pos);
   }
   void print_extra_info() const noexcept override {}
 };
@@ -240,7 +237,7 @@ public:
   [[nodiscard]] auto is_loyal() const noexcept -> bool { return m_loyalty > 0; }
   void down_loyalty() { m_loyalty -= m_K; }
   void print_extra_info() const noexcept override {
-    std::cout << "Its loyalty is " << m_loyalty << '\n';
+    std::println("Its loyalty is {}", m_loyalty);
   }
 
 private:
@@ -263,7 +260,7 @@ public:
       auto obj_type = obj->m_weapons.front().type;
 
       if (obj_type == WeaponType::ARROW) {
-        for (int i = static_cast<int>(obj->m_weapons.size() - 1);
+        for (int i = static_cast<std::uint8_t>(obj->m_weapons.size() - 1);
              i >= 0 && m_weapons.size() < m_max_weapons; --i) {
           m_weapons.emplace_back(obj->m_weapons[i]);
           obj->m_weapons.erase(obj->m_weapons.begin() + i);
@@ -279,13 +276,14 @@ public:
         }
       }
 
-      if (snatch_num > 0)
-        std::cout << time << ' ' << m_headquarter << " wolf " << m_id
-                  << " took " << snatch_num << ' '
-                  << WEAPON_NAMES[static_cast<int>(obj_type)] << " from "
-                  << obj->get_headquarter_name() << ' '
-                  << WARRIOR_NAMES[static_cast<int>(obj->get_type())] << " "
-                  << obj->get_id() << " in city " << city_pos << '\n';
+      if (snatch_num > 0) {
+        std::println("{} {} wolf {} took {} {} from {} {} {} in city {}", time,
+                     m_headquarter, m_id, snatch_num,
+                     WEAPON_NAMES[std::to_underlying(obj_type)],
+                     obj->get_headquarter_name(),
+                     WARRIOR_NAMES[std::to_underlying(obj->get_type())],
+                     obj->get_id(), city_pos);
+      }
     }
   }
   void print_extra_info() const noexcept override {}
@@ -304,8 +302,8 @@ public:
       -> const std::array<WarriorType, 5> & = 0;
 
   void report_elements(std::string_view time) const {
-    std::cout << time << " " << m_total_m << " elements in " << get_name()
-              << " headquarter\n";
+    std::println("{} {} elements in {} headquarter", time, m_total_m,
+                 get_name());
   }
 
   [[nodiscard]] auto step(std::string_view time) noexcept
@@ -315,16 +313,16 @@ public:
 
     const auto &order = get_order();
     WarriorType type = order[m_iter];
-    int cost = m_costs[static_cast<int>(type)];
+    int cost = m_costs[std::to_underlying(type)];
 
     if (m_total_m >= cost) {
       m_total_m -= cost;
-      ++m_counts[static_cast<int>(type)];
+      ++m_counts[std::to_underlying(type)];
       int id = ++m_total_count;
-      int atk = m_atk[static_cast<int>(type)];
+      int atk = m_atk[std::to_underlying(type)];
 
       auto warrior = create_warrior(id, type, cost, atk);
-      log_production(time, type, cost);
+      log_production(time, type);
       warrior->print_extra_info();
 
       m_iter = (m_iter + 1) % 5;
@@ -334,6 +332,8 @@ public:
     m_stopped = true;
     return nullptr;
   }
+
+  [[nodiscard]] auto is_stopped() const noexcept -> bool { return m_stopped; }
 
 protected:
   int m_total_m;
@@ -346,10 +346,9 @@ protected:
   bool m_stopped{false};
 
 private:
-  void log_production(std::string_view time, WarriorType type, int cost) const {
-    std::cout << time << ' ' << get_name() << ' '
-              << WARRIOR_NAMES[static_cast<int>(type)] << ' ' << m_total_count
-              << " born\n";
+  void log_production(std::string_view time, WarriorType type) const {
+    std::println("{} {} {} {} born", time, get_name(),
+                 WARRIOR_NAMES[std::to_underlying(type)], m_total_count);
   }
 
   [[nodiscard]] auto create_warrior(int id, WarriorType type, int cost,
@@ -430,14 +429,16 @@ public:
     m_incoming_blue = std::move(w);
   }
 
-  [[nodiscard]] auto is_taken() const noexcept -> bool { return m_enemy_count >= 1; }
+  [[nodiscard]] auto is_taken() const noexcept -> bool {
+    return m_enemy_count >= 1;
+  }
 
   void check_lion(std::string_view time, int N) {
     if (m_red_warrior && m_red_warrior->get_type() == WarriorType::LION &&
         m_pos < N + 1) {
       auto *lion = static_cast<Lion *>(m_red_warrior.get());
       if (!lion->is_loyal()) {
-        std::cout << time << " red lion " << lion->get_id() << " ran away\n";
+        std::println("{} red lion {} ran away", time, lion->get_id());
         m_red_warrior = nullptr;
       }
     }
@@ -445,7 +446,7 @@ public:
         m_pos > 0) {
       auto *lion = static_cast<Lion *>(m_blue_warrior.get());
       if (!lion->is_loyal()) {
-        std::cout << time << " blue lion " << lion->get_id() << " ran away\n";
+        std::println("{} blue lion {} ran away", time, lion->get_id());
         m_blue_warrior = nullptr;
       }
     }
@@ -459,20 +460,19 @@ public:
       else if (m_red_warrior->get_type() == WarriorType::LION)
         static_cast<Lion *>(m_red_warrior.get())->down_loyalty();
 
-      std::cout << time << " red "
-                << WARRIOR_NAMES[static_cast<int>(m_red_warrior->get_type())]
-                << ' ' << m_red_warrior->get_id();
+      std::print("{} red {} {} ", time,
+                 WARRIOR_NAMES[std::to_underlying(m_red_warrior->get_type())],
+                 m_red_warrior->get_id());
+
       if (m_pos == N + 1) {
-        std::cout << " reached blue headquarter with "
-                  << m_red_warrior->get_hp() << " elements and force "
-                  << m_red_warrior->get_atk() << '\n';
+        std::println("reached blue headquarter with {} elements and force {}",
+                     m_red_warrior->get_hp(), m_red_warrior->get_atk());
         ++m_enemy_count;
         if (is_taken())
-          std::cout << time << " blue headquarter was taken\n";
+          std::println("{} blue headquarter was taken", time);
       } else {
-        std::cout << " marched to city " << m_pos << " with "
-                  << m_red_warrior->get_hp() << " elements and force "
-                  << m_red_warrior->get_atk() << '\n';
+        std::println("marched to city {} with {} elements and force {}", m_pos,
+                     m_red_warrior->get_hp(), m_red_warrior->get_atk());
       }
     }
 
@@ -483,20 +483,19 @@ public:
       else if (m_blue_warrior->get_type() == WarriorType::LION)
         static_cast<Lion *>(m_blue_warrior.get())->down_loyalty();
 
-      std::cout << time << " blue "
-                << WARRIOR_NAMES[static_cast<int>(m_blue_warrior->get_type())]
-                << ' ' << m_blue_warrior->get_id();
+      std::print("{} blue {} {} ", time,
+                 WARRIOR_NAMES[std::to_underlying(m_blue_warrior->get_type())],
+                 m_blue_warrior->get_id());
+
       if (m_pos == 0) {
-        std::cout << " reached red headquarter with "
-                  << m_blue_warrior->get_hp() << " elements and force "
-                  << m_blue_warrior->get_atk() << '\n';
+        std::println("reached red headquarter with {} elements and force {}",
+                     m_blue_warrior->get_hp(), m_blue_warrior->get_atk());
         ++m_enemy_count;
         if (is_taken())
-          std::cout << time << " red headquarter was taken\n";
+          std::println("{} red headquarter was taken", time);
       } else {
-        std::cout << " marched to city " << m_pos << " with "
-                  << m_blue_warrior->get_hp() << " elements and force "
-                  << m_blue_warrior->get_atk() << '\n';
+        std::println("marched to city {} with {} elements and force {}", m_pos,
+                     m_blue_warrior->get_hp(), m_blue_warrior->get_atk());
       }
     }
   }
@@ -532,8 +531,7 @@ public:
       Warrior *second =
           (m_pos % 2 == 1) ? m_blue_warrior.get() : m_red_warrior.get();
 
-      int unchanged_rounds =
-          0;
+      int unchanged_rounds = 0;
 
       while (true) {
         int r_hp = m_red_warrior->get_hp(),
@@ -582,21 +580,19 @@ private:
   std::unique_ptr<Warrior> m_incoming_blue;
 
   void print_both_died_log(std::string_view time) const noexcept {
-    std::cout << time << " both red "
-              << WARRIOR_NAMES[static_cast<int>(m_red_warrior->get_type())]
-              << ' ' << m_red_warrior->get_id() << " and blue "
-              << WARRIOR_NAMES[static_cast<int>(m_blue_warrior->get_type())]
-              << ' ' << m_blue_warrior->get_id() << " died in city " << m_pos
-              << '\n';
+    std::println("{} both red {} {} and blue {} {} died in city {}", time,
+                 WARRIOR_NAMES[std::to_underlying(m_red_warrior->get_type())],
+                 m_red_warrior->get_id(),
+                 WARRIOR_NAMES[std::to_underlying(m_blue_warrior->get_type())],
+                 m_blue_warrior->get_id(), m_pos);
   }
 
   void print_alive_log(std::string_view time) const noexcept {
-    std::cout << time << " both red "
-              << WARRIOR_NAMES[static_cast<int>(m_red_warrior->get_type())]
-              << ' ' << m_red_warrior->get_id() << " and blue "
-              << WARRIOR_NAMES[static_cast<int>(m_blue_warrior->get_type())]
-              << ' ' << m_blue_warrior->get_id() << " were alive in city "
-              << m_pos << '\n';
+    std::println("{} both red {} {} and blue {} {} were alive in city {}", time,
+                 WARRIOR_NAMES[std::to_underlying(m_red_warrior->get_type())],
+                 m_red_warrior->get_id(),
+                 WARRIOR_NAMES[std::to_underlying(m_blue_warrior->get_type())],
+                 m_blue_warrior->get_id(), m_pos);
   }
 
   void handle_result_and_logs(std::string_view time) noexcept {
@@ -611,12 +607,12 @@ private:
       m_red_warrior->cleanup_weapons();
       m_blue_warrior->cleanup_weapons();
       m_blue_warrior->loot(m_red_warrior.get());
-      std::cout << time << " blue "
-                << WARRIOR_NAMES[static_cast<int>(m_blue_warrior->get_type())]
-                << ' ' << m_blue_warrior->get_id() << " killed red "
-                << WARRIOR_NAMES[static_cast<int>(m_red_warrior->get_type())]
-                << ' ' << m_red_warrior->get_id() << " in city " << m_pos
-                << " remaining " << m_blue_warrior->get_hp() << " elements\n";
+      std::println(
+          "{} blue {} {} killed red {} {} in city {} remaining {} elements",
+          time, WARRIOR_NAMES[std::to_underlying(m_blue_warrior->get_type())],
+          m_blue_warrior->get_id(),
+          WARRIOR_NAMES[std::to_underlying(m_red_warrior->get_type())],
+          m_red_warrior->get_id(), m_pos, m_blue_warrior->get_hp());
       m_red_warrior = nullptr;
       if (m_blue_warrior->get_type() == WarriorType::DRAGON)
         m_blue_warrior->yell(time, m_pos);
@@ -624,12 +620,12 @@ private:
       m_blue_warrior->cleanup_weapons();
       m_red_warrior->cleanup_weapons();
       m_red_warrior->loot(m_blue_warrior.get());
-      std::cout << time << " red "
-                << WARRIOR_NAMES[static_cast<int>(m_red_warrior->get_type())]
-                << ' ' << m_red_warrior->get_id() << " killed blue "
-                << WARRIOR_NAMES[static_cast<int>(m_blue_warrior->get_type())]
-                << ' ' << m_blue_warrior->get_id() << " in city " << m_pos
-                << " remaining " << m_red_warrior->get_hp() << " elements\n";
+      std::println(
+          "{} red {} {} killed blue {} {} in city {} remaining {} elements",
+          time, WARRIOR_NAMES[std::to_underlying(m_red_warrior->get_type())],
+          m_red_warrior->get_id(),
+          WARRIOR_NAMES[std::to_underlying(m_blue_warrior->get_type())],
+          m_blue_warrior->get_id(), m_pos, m_red_warrior->get_hp());
       m_blue_warrior = nullptr;
       if (m_red_warrior->get_type() == WarriorType::DRAGON)
         m_red_warrior->yell(time, m_pos);
@@ -652,7 +648,7 @@ auto main() -> int {
   if (!(std::cin >> t))
     return 0;
 
-  for (int caseIdx = 1; caseIdx <= t; ++caseIdx) {
+  for (int caseIdx : std::views::iota(1, t + 1)) {
     int M, N, T;
     std::cin >> M >> N >> K >> T;
     std::array<int, WARRIOR_COUNT> warrior_HP;
@@ -662,7 +658,7 @@ auto main() -> int {
     for (int &atk : warrior_ATK)
       std::cin >> atk;
 
-    std::cout << "Case " << caseIdx << ":\n";
+    std::println("Case {}:", caseIdx);
 
     std::array<std::unique_ptr<Headquarter>, 2> bases = {
         std::make_unique<RedHeadquarter>(warrior_ATK, M, warrior_HP, N),
@@ -670,7 +666,7 @@ auto main() -> int {
 
     std::vector<City> cities;
     cities.reserve(N + 2);
-    for (int i = 0; i < N + 2; ++i)
+    for (int i : std::views::iota(0, N + 2))
       cities.emplace_back(i);
 
     int hour = 0;
@@ -680,34 +676,28 @@ auto main() -> int {
       if (hour * 60 > T || game_over)
         break;
 
-      char m_buf[16];
-      int len = std::snprintf(m_buf, sizeof(m_buf), "%03d:00", hour);
-      std::string_view time_00(m_buf, len);
-
+      std::string time_00 = std::format("{:03}:00", hour);
       cities[0].produce_red(bases[0]->step(time_00));
       cities[N + 1].produce_blue(bases[1]->step(time_00));
 
       if (hour * 60 + 5 > T)
         break;
-      len = std::snprintf(m_buf, sizeof(m_buf), "%03d:05", hour);
-      std::string_view time_05(m_buf, len);
-
-      for (int i = 0; i < N + 2; ++i)
+      std::string time_05 = std::format("{:03}:05", hour);
+      for (int i : std::views::iota(0, N + 2))
         cities[i].check_lion(time_05, N);
 
       if (hour * 60 + 10 > T)
         break;
-      len = std::snprintf(m_buf, sizeof(m_buf), "%03d:10", hour);
-      std::string_view time_10(m_buf, len);
+      std::string time_10 = std::format("{:03}:10", hour);
 
-      for (int i = 0; i < N + 2; ++i) {
+      for (int i : std::views::iota(0, N + 2)) {
         if (cities[i].get_red() && i < N + 1)
           cities[i + 1].accept_incoming_red(cities[i].red_leaves());
         if (cities[i].get_blue() && i > 0)
           cities[i - 1].accept_incoming_blue(cities[i].blue_leaves());
       }
 
-      for (int i = 0; i < N + 2; ++i) {
+      for (int i : std::views::iota(0, N + 2)) {
         cities[i].commit_arrivals(time_10, N);
         if (cities[i].is_taken())
           game_over = true;
@@ -717,37 +707,30 @@ auto main() -> int {
 
       if (hour * 60 + 35 > T)
         break;
-      len = std::snprintf(m_buf, sizeof(m_buf), "%03d:35", hour);
-      std::string_view time_35(m_buf, len);
-
-      for (int i = 1; i <= N; ++i)
+      std::string time_35 = std::format("{:03}:35", hour);
+      for (int i : std::views::iota(1, N + 1))
         cities[i].wolf_snatch(time_35);
 
       if (hour * 60 + 40 > T)
         break;
-      len = std::snprintf(m_buf, sizeof(m_buf), "%03d:40", hour);
-      std::string_view time_40(m_buf, len);
-
-      for (int i = 1; i <= N; ++i)
+      std::string time_40 = std::format("{:03}:40", hour);
+      for (int i : std::views::iota(1, N + 1))
         cities[i].fight(time_40);
 
       if (hour * 60 + 50 > T)
         break;
-      len = std::snprintf(m_buf, sizeof(m_buf), "%03d:50", hour);
-      std::string_view time_50(m_buf, len);
-
+      std::string time_50 = std::format("{:03}:50", hour);
       bases[0]->report_elements(time_50);
       bases[1]->report_elements(time_50);
 
       if (hour * 60 + 55 > T)
         break;
-      len = std::snprintf(m_buf, sizeof(m_buf), "%03d:55", hour);
-      std::string_view time_55(m_buf, len);
-
-      for (int i = 0; i < N + 2; ++i)
+      std::string time_55 = std::format("{:03}:55", hour);
+      for (int i : std::views::iota(0, N + 2))
         cities[i].report_warrior_status(time_55);
 
       ++hour;
     }
   }
+  return 0;
 }
