@@ -1,5 +1,7 @@
+#include <algorithm>
 #include <iostream>
 #include <vector>
+
 
 auto main() -> int {
   std::cin.tie(nullptr)->sync_with_stdio(false);
@@ -8,52 +10,34 @@ auto main() -> int {
   std::cin >> N;
 
   std::vector<int> h(N);
-  for (auto &price : h)
-    std::cin >> price;
+  for (int i = 0; i < N; ++i)
+    std::cin >> h[i];
 
-  std::vector<int> L(N, -1);
-  std::vector<int> st;
-
-  for (int j = 0; j < N; ++j) {
-    while (!st.empty() && h[st.back()] < h[j])
-      st.pop_back();
-    if (!st.empty())
-      L[j] = st.back();
-    st.push_back(j);
-  }
-
-  int max_len = 0;
+  std::vector<int> st_max;
   std::vector<int> cand;
+  int max_len = 0;
 
   for (int j = 0; j < N; ++j) {
-    while (!cand.empty() && h[cand.back()] >= h[j])
+    while (!st_max.empty() && h[st_max.back()] < h[j]) {
+      st_max.pop_back();
+    }
+    int lj = st_max.empty() ? -1 : st_max.back();
+
+    while (!cand.empty() && h[cand.back()] >= h[j]) {
       cand.pop_back();
+    }
 
     if (!cand.empty()) {
-      int l = 0, r = static_cast<int>(cand.size() - 1);
-      int best_i = -1;
-
-      while (l <= r) {
-        int mid = l + ((r - l) >> 1);
-        if (cand[mid] > L[j]) {
-          best_i = cand[mid];
-          r = mid - 1;
-        } else {
-          l = mid + 1;
-        }
-      }
-
-      if (best_i != -1) {
-        int current_len = j - best_i + 1;
-        if (current_len > max_len)
-          max_len = current_len;
+      auto it = std::upper_bound(cand.begin(), cand.end(), lj);
+      if (it != cand.end()) {
+        int best_i = *it;
+        max_len = std::max(max_len, j - best_i + 1);
       }
     }
 
+    st_max.push_back(j);
     cand.push_back(j);
   }
 
   std::cout << max_len << '\n';
-
-  return 0;
 }
