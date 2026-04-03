@@ -1,6 +1,6 @@
+#include <algorithm>
 #include <iostream>
 #include <vector>
-#include <algorithm>
 
 auto main() -> int {
   std::cin.tie(nullptr)->sync_with_stdio(false);
