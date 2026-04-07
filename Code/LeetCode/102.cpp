@@ -32,7 +32,7 @@ public:
     q.push(root);
 
     while (!q.empty()) {
-      int sz = q.size();
+      int sz = static_cast<int>(q.size());
       std::vector<int> level;
       while (sz--) {
         auto front = q.front();
