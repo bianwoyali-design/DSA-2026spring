@@ -31,7 +31,7 @@ matrix, http://cs101.openjudge.cn/practice/02039/
 
 代码：
 
-```python
+```cpp
 #include <algorithm>
 #include <iostream>
 #include <string>
@@ -85,7 +85,7 @@ implementation, http://cs101.openjudge.cn/practice/02092/
 
 代码：
 
-```python
+```cpp
 #include <iostream>
 #include <map>
 
@@ -137,7 +137,7 @@ binary search, http://cs101.openjudge.cn/practice/02774/
 
 代码：
 
-```python
+```cpp
 #include <algorithm>
 #include <iostream>
 #include <vector>
@@ -208,7 +208,7 @@ $C_n = \frac{(4n - 2)}{n + 1} C_{n-1},\ n > 0,\ C_0 = 1.$
 
 代码：
 
-```python
+```cpp
 #include <iostream>
 
 auto main() -> int {
@@ -244,7 +244,7 @@ stack, http://cs101.openjudge.cn/practice/M30637/
 
 代码
 
-```python
+```cpp
 #include <iostream>
 #include <stack>
 #include <string>
@@ -303,7 +303,7 @@ monotonic stack, http://cs101.openjudge.cn/practice/T30102/
 
 代码
 
-```python
+```cpp
 #include <iostream>
 #include <vector>
 #include <algorithm>
