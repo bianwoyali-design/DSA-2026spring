@@ -2,6 +2,7 @@
 #include <new>
 #include <optional>
 #include <queue>
+#include <utility>
 #include <vector>
 
 // Definition for a binary tree node.
@@ -24,22 +25,26 @@ public:
       return nullptr;
 
     auto root = new (std::nothrow) TreeNode(node.front().value());
+    if (!root)
+      return nullptr;
+
     std::queue<TreeNode *> q;
     q.push(root);
 
-    int i = 1;
-    while (!q.empty() && i < node.size()) {
+    const auto n = node.size();
+    std::size_t i = 1;
+    while (!q.empty() && i < n) {
       auto front = q.front();
       q.pop();
 
-      if (i < node.size() && node[i] != std::nullopt) {
+      if (i < n && node[i] != std::nullopt) {
         front->left = new (std::nothrow) TreeNode(node[i].value());
         if (front->left)
           q.push(front->left);
       }
       ++i;
 
-      if (i < node.size() && node[i] != std::nullopt) {
+      if (i < n && node[i] != std::nullopt) {
         front->right = new (std::nothrow) TreeNode(node[i].value());
         if (front->right)
           q.push(front->right);
@@ -48,26 +53,44 @@ public:
     }
     return root;
   }
+
+  static auto destroyTree(TreeNode *root) noexcept -> void {
+    if (!root)
+      return;
+
+    std::queue<TreeNode *> q;
+    q.push(root);
+    while (!q.empty()) {
+      auto cur = q.front();
+      q.pop();
+      if (cur->left)
+        q.push(cur->left);
+      if (cur->right)
+        q.push(cur->right);
+      delete cur;
+    }
+  }
 };
 
 class Solution {
 public:
   auto lcaDeepestLeaves(TreeNode *root) -> TreeNode * {
-    auto dfs = [&](this auto &&dfs,
-                   TreeNode *root) -> std::pair<int, TreeNode *> {
-      if (!root)
-        return {0, nullptr};
-      auto [left_height, left_lca] = dfs(root->left);
-      auto [right_height, right_lca] = dfs(root->right);
-
-      if (left_height < right_height)
-        return {right_height + 1, right_lca};
-      if (left_height > right_height)
-        return {left_height + 1, left_lca};
-      return {left_height + 1, root};
-    };
-
     return dfs(root).second;
+  }
+
+private:
+  static auto dfs(TreeNode *root) -> std::pair<int, TreeNode *> {
+    if (!root)
+      return {0, nullptr};
+
+    auto [left_height, left_lca] = dfs(root->left);
+    auto [right_height, right_lca] = dfs(root->right);
+
+    if (left_height < right_height)
+      return {right_height + 1, right_lca};
+    if (left_height > right_height)
+      return {left_height + 1, left_lca};
+    return {left_height + 1, root};
   }
 };
 
@@ -79,8 +102,8 @@ auto main() -> int {
   auto tree = TreeUtils::buildTree(root);
   Solution sol;
   TreeNode *res = sol.lcaDeepestLeaves(tree);
-  std::cout << res->val << ' ' << res->left->val << ' ' << res->right->val
-            << '\n';
+  if (res)
+    std::cout << res->val << '\n';
 
-  delete tree;
+  TreeUtils::destroyTree(tree);
 }

@@ -14,11 +14,6 @@ struct TreeNode {
   TreeNode(int x) : val(x), left(nullptr), right(nullptr) {}
   TreeNode(int x, TreeNode *left, TreeNode *right)
       : val(x), left(left), right(right) {}
-
-  ~TreeNode() {
-    delete left;
-    delete right;
-  }
 };
 
 class Solution {
@@ -54,35 +49,56 @@ public:
 class TreeUtils {
 public:
   [[nodiscard]] static auto
-  buildTree(std::vector<std::optional<int>> node) noexcept -> TreeNode * {
+  buildTree(const std::vector<std::optional<int>> &node) noexcept
+      -> TreeNode * {
     if (node.empty() || node.front() == std::nullopt)
       return nullptr;
 
     auto root = new (std::nothrow) TreeNode(node.front().value());
+    if (!root)
+      return nullptr;
+
     std::queue<TreeNode *> q;
     q.push(root);
 
-    int i = 1;
-    while (!q.empty() && i < node.size()) {
+    const auto n = node.size();
+    std::size_t i = 1;
+    while (!q.empty() && i < n) {
       auto front = q.front();
       q.pop();
 
-      if (node[i] != std::nullopt && i < node.size()) {
+      if (i < n && node[i] != std::nullopt) {
         front->left = new (std::nothrow) TreeNode(node[i].value());
         if (front->left)
           q.push(front->left);
       }
       ++i;
 
-      if (node[i] != std::nullopt && i < node.size()) {
+      if (i < n && node[i] != std::nullopt) {
         front->right = new (std::nothrow) TreeNode(node[i].value());
         if (front->right)
           q.push(front->right);
       }
       ++i;
     }
-
     return root;
+  }
+
+  static auto destroyTree(TreeNode *root) noexcept -> void {
+    if (!root)
+      return;
+
+    std::queue<TreeNode *> q;
+    q.push(root);
+    while (!q.empty()) {
+      auto cur = q.front();
+      q.pop();
+      if (cur->left)
+        q.push(cur->left);
+      if (cur->right)
+        q.push(cur->right);
+      delete cur;
+    }
   }
 };
 
@@ -98,5 +114,5 @@ auto main() -> int {
     for (int i : std::views::iota(0, static_cast<int>(r.size())))
       std::cout << r[i] << " \n"[i + 1 == r.size()];
 
-  delete root;
+  TreeUtils::destroyTree(root);
 }

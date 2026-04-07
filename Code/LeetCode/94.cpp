@@ -14,11 +14,6 @@ struct TreeNode {
   explicit TreeNode(int x) : val(x), left(nullptr), right(nullptr) {}
   explicit TreeNode(int x, TreeNode *left, TreeNode *right)
       : val(x), left(left), right(right) {}
-
-  ~TreeNode() {
-    delete left;
-    delete right;
-  }
 };
 
 class TreeUtils {
@@ -30,22 +25,26 @@ public:
       return nullptr;
 
     auto root = new (std::nothrow) TreeNode(node.front().value());
+    if (!root)
+      return nullptr;
+
     std::queue<TreeNode *> q;
     q.push(root);
 
-    int i = 1;
-    while (!q.empty() && i < node.size()) {
+    const auto n = node.size();
+    std::size_t i = 1;
+    while (!q.empty() && i < n) {
       auto front = q.front();
       q.pop();
 
-      if (i < node.size() && node[i] != std::nullopt) {
+      if (i < n && node[i] != std::nullopt) {
         front->left = new (std::nothrow) TreeNode(node[i].value());
         if (front->left)
           q.push(front->left);
       }
       ++i;
 
-      if (i < node.size() && node[i] != std::nullopt) {
+      if (i < n && node[i] != std::nullopt) {
         front->right = new (std::nothrow) TreeNode(node[i].value());
         if (front->right)
           q.push(front->right);
@@ -53,6 +52,23 @@ public:
       ++i;
     }
     return root;
+  }
+
+  static auto destroyTree(TreeNode *root) noexcept -> void {
+    if (!root)
+      return;
+
+    std::queue<TreeNode *> q;
+    q.push(root);
+    while (!q.empty()) {
+      auto cur = q.front();
+      q.pop();
+      if (cur->left)
+        q.push(cur->left);
+      if (cur->right)
+        q.push(cur->right);
+      delete cur;
+    }
   }
 };
 
@@ -96,5 +112,5 @@ auto main() -> int {
   for (int i : std::views::iota(0, static_cast<int>(res.size())))
     std::cout << res[i] << " \n"[i + 1 == res.size()];
 
-  delete tree;
+  TreeUtils::destroyTree(tree);
 }

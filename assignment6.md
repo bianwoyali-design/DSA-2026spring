@@ -29,12 +29,12 @@ dfs, stack, https://leetcode.cn/problems/binary-tree-inorder-traversal/
 
 Morris 遍历的核心思想可以用一句话概括：**利用二叉树中大量空闲的 `right` 指针，建立指向“后继”节点的临时线索。**
 
-### 1. 为什么需要栈？
+#### 1. 为什么需要栈？
 在正常的遍历（递归或迭代）中，当我们从父节点进入左子树后，**必须记住回来的路**，否则等左子树遍历完了，我们就找不到父节点，也就无法进入右子树。
 *   **递归**：利用系统函数栈来保存返回地址。
 *   **迭代**：利用自定义的 `std::stack` 来保存父节点。
 
-### 2. Morris 的天才构思：利用“前驱”指向“后继”
+#### 2. Morris 的天才构思：利用“前驱”指向“后继”
 Morris 问：能不能不花额外空间就把“回来的路”存下来？
 他观察到：在中序遍历中，当你遍历完左子树时，**最后访问的那个节点**（左子树中最右边的节点，称为“前驱节点”）的 `right` 指针是空的！
 
@@ -43,7 +43,7 @@ Morris 问：能不能不花额外空间就把“回来的路”存下来？
 
 ---
 
-### 3. 图解原理
+#### 3. 图解原理
 
 假设有这样一棵树：
 ```
@@ -54,7 +54,7 @@ Morris 问：能不能不花额外空间就把“回来的路”存下来？
   4   5
 ```
 
-#### 第一步：建立线索
+##### 第一步：建立线索
 1.  当前在 `1`。它有左子树。
 2.  找到 `1` 的左子树中最右的节点，即 `5`。
 3.  发现 `5` 的 `right` 是空的，于是建立线索：`5->right = 1`。
@@ -68,31 +68,31 @@ Morris 问：能不能不花额外空间就把“回来的路”存下来？
     ```
 5.  向左移动：`curr = 2`。
 
-#### 第二步：继续向下
+##### 第二步：继续向下
 1.  当前在 `2`。它有左子树。
 2.  找到 `2` 的左子树中最右的节点，即 `4`。
 3.  建立线索：`4->right = 2`。
 4.  向左移动：`curr = 4`。
 
-#### 第三步：利用线索返回
+##### 第三步：利用线索返回
 1.  当前在 `4`。它**没有**左子树。
 2.  打印 `4`。
 3.  移动到 `curr->right`。注意！此时 `4->right` 已经指向了 `2`。
 4.  **回到 `2` 了！**
 
-#### 第四步：消除线索（恢复树结构）
+##### 第四步：消除线索（恢复树结构）
 1.  再次寻找 `2` 的前驱，发现是 `4`。
 2.  但此时 `4->right` 已经指向 `2` 了（说明这是第二次来，左子树已完）。
 3.  **打印 `2`**。
 4.  **擦除线索**：`4->right = nullptr`。
 5.  移动到 `2` 的右子节点：`curr = 5`。
 
-#### 依此类推...
+##### 依此类推...
 接下来会处理 `5`，然后通过 `5->right` 回到 `1`，打印 `1`，最后进入 `3`。
 
 ---
 
-### 4. 三个关键状态
+#### 4. 三个关键状态
 
 在 Morris 遍历中，对于每一个有左子树的节点，我们会“路过”它两次：
 
@@ -103,7 +103,7 @@ Morris 问：能不能不花额外空间就把“回来的路”存下来？
     *   目的：销毁线索，访问当前节点。
     *   动作：去右子树。
 
-### 5. 复杂度分析
+#### 5. 复杂度分析
 *   **时间复杂度 $O(n)$**：
     虽然看起来有嵌套循环，但实际上每条边最多被走 3 次：
     1.  寻找前驱建立线索时。
@@ -113,15 +113,113 @@ Morris 问：能不能不花额外空间就把“回来的路”存下来？
 *   **空间复杂度 $O(1)$**：
     没有使用栈或递归，只用了两个辅助指针（`curr` 和 `pre`）。
 
-### 总结
+#### 总结
 Morris 遍历就像是在森林里走路：
 *   **普通遍历**：随身带地图（栈）。
 *   **Morris 遍历**：每走到一个分叉路口，先派人去左边小路的尽头，在那棵树上刻个箭头指向这个路口，然后再往左走。等以后顺着箭头走回来时，再把箭头抹掉，继续往右走。
 
 代码：
 
-```python
+```cpp
+#include <iostream>
+#include <new>
+#include <optional>
+#include <queue>
+#include <ranges>
+#include <vector>
 
+// Definition for a binary tree node.
+struct TreeNode {
+  int val;
+  TreeNode *left;
+  TreeNode *right;
+  explicit TreeNode() : val(0), left(nullptr), right(nullptr) {}
+  explicit TreeNode(int x) : val(x), left(nullptr), right(nullptr) {}
+  explicit TreeNode(int x, TreeNode *left, TreeNode *right)
+      : val(x), left(left), right(right) {}
+
+  ~TreeNode() {
+    delete left;
+    delete right;
+  }
+};
+
+class TreeUtils {
+public:
+  [[nodiscard]] static auto buildTree(const std::vector<std::optional<int>> &node) noexcept
+      -> TreeNode * {
+    if (node.empty() || node.front() == std::nullopt)
+      return nullptr;
+
+    auto *root = new (std::nothrow) TreeNode(node.front().value());
+    std::queue<TreeNode *> q;
+    q.push(root);
+
+    int i = 1;
+    while (!q.empty() && i < node.size()) {
+      auto front = q.front();
+      q.pop();
+
+      if (i < node.size() && node[i] != std::nullopt) {
+        front->left = new (std::nothrow) TreeNode(node[i].value());
+        if (front->left)
+          q.push(front->left);
+      }
+      ++i;
+
+      if (i < node.size() && node[i] != std::nullopt) {
+        front->right = new (std::nothrow) TreeNode(node[i].value());
+        if (front->right)
+          q.push(front->right);
+      }
+      ++i;
+    }
+    return root;
+  }
+};
+
+class Solution {
+public:
+  auto inorderTraversal(TreeNode *root) -> std::vector<int> {
+    std::vector<int> res;
+    auto curr = root;
+
+    while (curr) {
+      if (!curr->left) {
+        res.emplace_back(curr->val);
+        curr = curr->right;
+      } else {
+        TreeNode *pre = curr->left;
+        while (pre->right && pre->right != curr)
+          pre = pre->right;
+
+        if (!pre->right) {
+          pre->right = curr;
+          curr = curr->left;
+        } else {
+          res.emplace_back(curr->val);
+          pre->right = nullptr;
+          curr = curr->right;
+        }
+      }
+    }
+
+    return res;
+  }
+};
+
+auto main() -> int {
+  std::cin.tie(nullptr)->sync_with_stdio(false);
+
+  std::vector<std::optional<int>> root = {1, std::nullopt, 2, 3};
+  auto tree = TreeUtils::buildTree(root);
+  Solution sol;
+  std::vector<int> res = sol.inorderTraversal(tree);
+  for (int i : std::views::iota(0, static_cast<int>(res.size())))
+    std::cout << res[i] << " \n"[i + 1 == res.size()];
+
+  delete tree;
+}
 ```
 
 > 共用时10min
@@ -137,21 +235,70 @@ Morris 遍历就像是在森林里走路：
 https://leetcode.cn/problems/convert-sorted-array-to-binary-search-tree/
 
 
-思路：
+思路：中序遍历还原，用分治可以轻松解决
 
 
 
 代码：
 
-```python
+```cpp
+#include <iostream>
+#include <ranges>
+#include <vector>
 
+// Definition for a binary tree node.
+struct TreeNode {
+  int val;
+  TreeNode *left;
+  TreeNode *right;
+  TreeNode() : val(0), left(nullptr), right(nullptr) {}
+  TreeNode(int x) : val(x), left(nullptr), right(nullptr) {}
+  TreeNode(int x, TreeNode *left, TreeNode *right)
+      : val(x), left(left), right(right) {}
+};
+
+class Solution {
+public:
+  auto sortedArrayToBST(std::vector<int> &nums) -> TreeNode * {
+    auto dfs = [&](this auto &&dfs, int left, int right) -> TreeNode * {
+      if (left == right)
+        return nullptr;
+      int mid = left + ((right - left) >> 1);
+      return new TreeNode(nums[mid], dfs(left, mid), dfs(mid + 1, right));
+    };
+    return dfs(0, static_cast<int>(nums.size()));
+  }
+};
+
+auto main() -> int {
+  std::cin.tie(nullptr)->sync_with_stdio(false);
+
+  std::vector<int> nums = {-10, -3, 0, 5, 9};
+  Solution sol;
+  auto root = sol.sortedArrayToBST(nums);
+  std::vector<int> res;
+
+  auto PreorderTraversal = [&](this auto &&PreorderTraversal,
+                               TreeNode *root) -> void {
+    if (!root)
+      return;
+    res.emplace_back(root->val);
+    PreorderTraversal(root->left);
+    PreorderTraversal(root->right);
+  };
+
+  PreorderTraversal(root);
+
+  for (int i : std::views::iota(0, static_cast<int>(res.size())))
+    std::cout << res[i] << " \n"[i + 1 == res.size()];
+}
 ```
 
-
+> 共用时20min
 
 代码运行截图 <mark>（至少包含有"Accepted"）</mark>
 
-
+<img src="https://raw.githubusercontent.com/bianwoyali-design/Img/main/Img/20260407215120794.png"/>
 
 
 
@@ -159,43 +306,232 @@ https://leetcode.cn/problems/convert-sorted-array-to-binary-search-tree/
 
 bfs, https://leetcode.cn/problems/binary-tree-level-order-traversal/
 
-思路：
+思路：还原树至数组形式，本质bfs，以下代码可以对比建树和层序遍历过程，本质同样是bfs
 
-
+注意c++要手动释放内存
 
 代码：
 
-```python
+```cpp
+#include <iostream>
+#include <new>
+#include <optional>
+#include <queue>
+#include <ranges>
+#include <vector>
 
+// Definition for a binary tree node.
+struct TreeNode {
+  int val;
+  TreeNode *left;
+  TreeNode *right;
+  TreeNode() : val(0), left(nullptr), right(nullptr) {}
+  TreeNode(int x) : val(x), left(nullptr), right(nullptr) {}
+  TreeNode(int x, TreeNode *left, TreeNode *right)
+      : val(x), left(left), right(right) {}
+
+  ~TreeNode() {
+    delete left;
+    delete right;
+  }
+};
+
+class Solution {
+public:
+  auto levelOrder(TreeNode *root) -> std::vector<std::vector<int>> {
+    std::vector<std::vector<int>> res;
+    if (!root)
+      return res;
+
+    std::queue<TreeNode *> q;
+    q.push(root);
+
+    while (!q.empty()) {
+      int sz = q.size();
+      std::vector<int> level;
+      while (sz--) {
+        auto front = q.front();
+        q.pop();
+
+        level.emplace_back(front->val);
+        if (front->left)
+          q.push(front->left);
+        if (front->right)
+          q.push(front->right);
+      }
+      res.emplace_back(level);
+    }
+
+    return res;
+  }
+};
+
+class TreeUtils {
+public:
+  [[nodiscard]] static auto
+  buildTree(std::vector<std::optional<int>> node) noexcept -> TreeNode * {
+    if (node.empty() || node.front() == std::nullopt)
+      return nullptr;
+
+    auto root = new (std::nothrow) TreeNode(node.front().value());
+    std::queue<TreeNode *> q;
+    q.push(root);
+
+    int i = 1;
+    while (!q.empty() && i < node.size()) {
+      auto front = q.front();
+      q.pop();
+
+      if (node[i] != std::nullopt && i < node.size()) {
+        front->left = new (std::nothrow) TreeNode(node[i].value());
+        if (front->left)
+          q.push(front->left);
+      }
+      ++i;
+
+      if (node[i] != std::nullopt && i < node.size()) {
+        front->right = new (std::nothrow) TreeNode(node[i].value());
+        if (front->right)
+          q.push(front->right);
+      }
+      ++i;
+    }
+
+    return root;
+  }
+};
+
+auto main() -> int {
+  std::cin.tie(nullptr)->sync_with_stdio(false);
+
+  std::vector<std::optional<int>> node = {3,  9, 20, std::nullopt, std::nullopt,
+                                          15, 7};
+  auto root = TreeUtils::buildTree(node);
+  Solution sol;
+  std::vector<std::vector<int>> res = sol.levelOrder(root);
+  for (const auto &r : res)
+    for (int i : std::views::iota(0, static_cast<int>(r.size())))
+      std::cout << r[i] << " \n"[i + 1 == r.size()];
+
+  delete root;
+}
 ```
 
-
+> 共用时10min
 
 代码运行截图 <mark>（至少包含有"Accepted"）</mark>
 
-
-
-
+<img src="https://raw.githubusercontent.com/bianwoyali-design/Img/main/Img/20260407223548791.png"/>
 
 ### M1123.最深叶节点的最近公共祖先
 
 dfs, https://leetcode.cn/problems/lowest-common-ancestor-of-deepest-leaves/
 
-思路：
+思路：自下而上搜索，把深度转化为高度
 
 
 
 代码：
 
-```python
+```cpp
+#include <iostream>
+#include <new>
+#include <optional>
+#include <queue>
+#include <vector>
 
+// Definition for a binary tree node.
+struct TreeNode {
+  int val;
+  TreeNode *left;
+  TreeNode *right;
+  TreeNode() : val(0), left(nullptr), right(nullptr) {}
+  TreeNode(int x) : val(x), left(nullptr), right(nullptr) {}
+  TreeNode(int x, TreeNode *left, TreeNode *right)
+      : val(x), left(left), right(right) {}
+  
+  ~TreeNode() {
+    delete left;
+    delete right;
+  }
+};
+
+class TreeUtils {
+public:
+  [[nodiscard]] static auto
+  buildTree(const std::vector<std::optional<int>> &node) noexcept
+      -> TreeNode * {
+    if (node.empty() || node.front() == std::nullopt)
+      return nullptr;
+
+    auto root = new (std::nothrow) TreeNode(node.front().value());
+    std::queue<TreeNode *> q;
+    q.push(root);
+
+    int i = 1;
+    while (!q.empty() && i < node.size()) {
+      auto front = q.front();
+      q.pop();
+
+      if (i < node.size() && node[i] != std::nullopt) {
+        front->left = new (std::nothrow) TreeNode(node[i].value());
+        if (front->left)
+          q.push(front->left);
+      }
+      ++i;
+
+      if (i < node.size() && node[i] != std::nullopt) {
+        front->right = new (std::nothrow) TreeNode(node[i].value());
+        if (front->right)
+          q.push(front->right);
+      }
+      ++i;
+    }
+    return root;
+  }
+};
+
+class Solution {
+public:
+  auto lcaDeepestLeaves(TreeNode *root) -> TreeNode * {
+    auto dfs = [&](this auto &&dfs,
+                   TreeNode *root) -> std::pair<int, TreeNode *> {
+      if (!root)
+        return {0, nullptr};
+      auto [left_height, left_lca] = dfs(root->left);
+      auto [right_height, right_lca] = dfs(root->right);
+
+      if (left_height < right_height)
+        return {right_height + 1, right_lca};
+      if (left_height > right_height)
+        return {left_height + 1, left_lca};
+      return {left_height + 1, root};
+    };
+
+    return dfs(root).second;
+  }
+};
+
+auto main() -> int {
+  std::cin.tie(nullptr)->sync_with_stdio(false);
+
+  std::vector<std::optional<int>> root = {
+      3, 5, 1, 6, 2, 0, 8, std::nullopt, std::nullopt, 7, 4};
+  auto tree = TreeUtils::buildTree(root);
+  Solution sol;
+  TreeNode *res = sol.lcaDeepestLeaves(tree);
+  std::cout << res->val << ' ' << res->left->val << ' ' << res->right->val
+            << '\n';
+
+  delete tree;
+}
 ```
 
-
+> 共用时30min
 
 代码运行截图 <mark>（至少包含有"Accepted"）</mark>
 
-
+<img src="https://raw.githubusercontent.com/bianwoyali-design/Img/main/Img/20260407231752560.png"/>
 
 
 
