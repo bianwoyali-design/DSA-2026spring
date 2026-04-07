@@ -23,12 +23,13 @@ struct TreeNode {
 
 class TreeUtils {
 public:
-  [[nodiscard]] static auto buildTree(const std::vector<std::optional<int>> &node) noexcept
+  [[nodiscard]] static auto
+  buildTree(const std::vector<std::optional<int>> &node) noexcept
       -> TreeNode * {
     if (node.empty() || node.front() == std::nullopt)
       return nullptr;
 
-    auto *root = new (std::nothrow) TreeNode(node.front().value());
+    auto root = new (std::nothrow) TreeNode(node.front().value());
     std::queue<TreeNode *> q;
     q.push(root);
 
