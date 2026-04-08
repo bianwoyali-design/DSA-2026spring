@@ -41,6 +41,8 @@ constexpr int WEAPON_COUNT = std::to_underlying(WeaponType::COUNT);
 constexpr std::array<std::string_view, WEAPON_COUNT> WEAPON_NAMES = {
     "sword", "bomb", "arrow"};
 
+constexpr int HEADQUARTER_FALLEN_ENEMIES = 1;
+
 struct Config {
   int id;
   int hp;
@@ -262,19 +264,29 @@ public:
       auto obj_type = obj->m_weapons.front().type;
 
       if (obj_type == WeaponType::ARROW) {
-        for (int i = static_cast<std::uint8_t>(obj->m_weapons.size() - 1);
-             i >= 0 && m_weapons.size() < m_max_weapons; --i) {
+        int i = static_cast<int>(obj->m_weapons.size()) - 1;
+        for (; i >= 0 && m_weapons.size() < m_max_weapons; --i) {
+          if (obj->m_weapons[i].type != WeaponType::ARROW)
+            break;
           m_weapons.emplace_back(obj->m_weapons[i]);
-          obj->m_weapons.erase(obj->m_weapons.begin() + i);
           ++snatch_num;
         }
+        if (snatch_num > 0) {
+          auto erase_begin = obj->m_weapons.begin() + (i + 1);
+          obj->m_weapons.erase(erase_begin, erase_begin + snatch_num);
+        }
       } else {
-        while (!obj->m_weapons.empty() &&
-               obj->m_weapons.front().type == obj_type &&
+        int take = 0;
+        int total = static_cast<int>(obj->m_weapons.size());
+        while (take < total && obj->m_weapons[take].type == obj_type &&
                m_weapons.size() < m_max_weapons) {
-          m_weapons.emplace_back(obj->m_weapons.front());
-          obj->m_weapons.erase(obj->m_weapons.begin());
+          m_weapons.emplace_back(obj->m_weapons[take]);
           ++snatch_num;
+          ++take;
+        }
+        if (take > 0) {
+          obj->m_weapons.erase(obj->m_weapons.begin(),
+                               obj->m_weapons.begin() + take);
         }
       }
 
@@ -432,7 +444,7 @@ public:
   }
 
   [[nodiscard]] auto is_taken() const noexcept -> bool {
-    return m_enemy_count >= 1;
+    return m_enemy_count >= HEADQUARTER_FALLEN_ENEMIES;
   }
 
   void check_lion(std::string_view time, int N) {
