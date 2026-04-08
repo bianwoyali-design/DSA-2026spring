@@ -545,7 +545,7 @@ tree, http://cs101.openjudge.cn/practice/07161/
 
 代码
 
-```python
+```cpp
 #include <cstddef>
 #include <iostream>
 #include <new>
@@ -675,7 +675,7 @@ auto main() -> int {
 
 代码
 
-```python
+```cpp
 #include <algorithm>
 #include <iostream>
 #include <sstream>
