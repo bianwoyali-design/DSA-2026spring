@@ -746,5 +746,4 @@ auto main() -> int {
       ++hour;
     }
   }
-  return 0;
 }
