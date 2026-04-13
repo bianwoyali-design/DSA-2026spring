@@ -770,5 +770,251 @@ auto main() -> int {
 
 每日选做整理中，后续将提交到评论区
 
+#### Leetcode 1594
+
+```cpp
+#include <algorithm>
+#include <climits>
+#include <cstddef>
+#include <iostream>
+#include <vector>
+
+class Solution {
+  constexpr static int MOD = 1000000007;
+
+public:
+  auto maxProductPath(std::vector<std::vector<int>> &grid) -> int {
+    size_t m = grid.size();
+    size_t n = grid[0].size();
+
+    std::vector<long long> dp_max(n), dp_min(n);
+
+    for (int i = 0; i < m; ++i)
+      for (int j = 0; j < n; ++j) {
+        long long x = grid[i][j];
+        if (i == 0 && j == 0) {
+          dp_max[0] = x, dp_min[0] = x;
+          continue;
+        }
+
+        long long res_max = LLONG_MIN;
+        long long res_min = LLONG_MAX;
+        if (i > 0) {
+          long long mx = dp_max[j], mn = dp_min[j];
+          res_max = std::max(mx * x, mn * x);
+          res_min = std::min(mx * x, mn * x);
+        }
+        if (j > 0) {
+          long long mx = dp_max[j - 1], mn = dp_min[j - 1];
+          res_max = std::max({res_max, mx * x, mn * x});
+          res_min = std::min({res_min, mx * x, mn * x});
+        }
+
+        dp_max[j] = res_max;
+        dp_min[j] = res_min;
+      }
+
+    long long ans = dp_max[n - 1];
+    return ans < 0 ? -1 : static_cast<int>(ans % MOD);
+  }
+};
+
+auto main() -> int {
+  std::cin.tie(nullptr)->sync_with_stdio(false);
+
+  std::vector grid(3, std::vector<int>(3));
+  grid = {{1, -2, 1}, {1, -2, 1}, {3, -4, 1}};
+  Solution sol;
+  std::cout << sol.maxProductPath(grid) << '\n';
+}
+```
 
 
+
+<img src="https://raw.githubusercontent.com/bianwoyali-design/Img/main/Img/20260411162000097.png"/>
+
+#### LeetCode 3643
+
+```cpp
+#include <iostream>
+#include <utility>
+#include <vector>
+
+class Solution {
+public:
+  auto reverseSubmatrix(std::vector<std::vector<int>> &grid, int x, int y,
+                        int k) -> std::vector<std::vector<int>> {
+    for (int i = 0; i < k / 2; ++i)
+      for (int j = 0; j < k; ++j)
+        std::swap(grid[x + i][y + j], grid[x + k - 1 - i][y + j]);
+    return std::move(grid);
+  }
+};
+
+auto main() -> int {
+  std::cin.tie(nullptr)->sync_with_stdio(false);
+
+  std::vector grid(4, std::vector<int>(4));
+  grid = {{1, 2, 3, 4}, {5, 6, 7, 8}, {9, 10, 11, 12}, {13, 14, 15, 16}};
+  Solution sol;
+  auto res = sol.reverseSubmatrix(grid, 1, 0, 3);
+  for (const auto &row : res) {
+    for (const auto v : row)
+      std::cout << v << ' ';
+    std::cout << '\n';
+  }
+}
+```
+
+<img src="https://raw.githubusercontent.com/bianwoyali-design/Img/main/Img/20260411170041096.png"/>
+
+#### LeetCode 240
+
+```cpp
+#include <iostream>
+#include <vector>
+
+class Solution {
+public:
+  auto searchMatrix(std::vector<std::vector<int>> &matrix, int target) -> bool {
+    int i = static_cast<int>(matrix.size() - 1), j = 0;
+    while (i >= 0 && j < matrix[0].size()) {
+      if (matrix[i][j] < target)
+        ++j;
+      else if (matrix[i][j] > target)
+        --i;
+      else
+        return true;
+    }
+    return false;
+  }
+};
+
+auto main() -> int {
+  std::cin.tie(nullptr)->sync_with_stdio(false);
+
+  std::vector matrix(5, std::vector<int>(5));
+  matrix = {{1, 4, 7, 11, 15},
+            {2, 5, 8, 12, 19},
+            {3, 6, 9, 16, 22},
+            {10, 13, 14, 17, 24},
+            {18, 21, 23, 26, 30}};
+  int target = 5;
+  Solution sol;
+  std::cout << sol.searchMatrix(matrix, target) << '\n';
+}
+```
+
+
+
+<img src="https://raw.githubusercontent.com/bianwoyali-design/Img/main/Img/20260411170118727.png"/>
+
+#### LeetCode 1886
+
+ 在qemu写设置IRQ的挂起标志位的时候学到了打开或关闭某一位状态的方法。
+
+```0xF(BIN) = 1111(HEX)```
+
+打开：```1110 | (1 << 0) = 1111```
+
+关闭： ```1111 & ~(1 << 0) = 1110```
+
+```cpp
+#include <iostream>
+#include <vector>
+
+class Solution {
+public:
+  auto findRotation(std::vector<std::vector<int>> &mat,
+                    std::vector<std::vector<int>> &target) -> bool {
+    size_t n = mat.size();
+    int status = 0xF;
+
+    for (int i = 0; i < n; ++i)
+      for (int j = 0; j < n; ++j) {
+        int x = target[i][j];
+        if (x != mat[i][j])
+          status &= ~(1 << 0);
+        if (x != mat[j][n - i - 1])
+          status &= ~(1 << 1);
+        if (x != mat[n - i - 1][n - j - 1])
+          status &= ~(1 << 2);
+        if (x != mat[n - j - 1][i])
+          status &= ~(1 << 3);
+        if (status == 0)
+          return false;
+      }
+    return true;
+  }
+};
+
+auto main() -> int {
+  std::cin.tie(nullptr)->sync_with_stdio(false);
+  std::vector<std::vector<int>> mat, target;
+  mat = {{0, 0, 0}, {0, 1, 0}, {1, 1, 1}};
+  target = {{1, 1, 1}, {0, 1, 0}, {0, 0, 0}};
+  Solution sol;
+  std::cout << sol.findRotation(mat, target) << '\n';
+}
+```
+
+
+
+<img src="https://raw.githubusercontent.com/bianwoyali-design/Img/main/Img/20260411171824702.png"/>
+
+#### LeetCode 394
+
+```cpp
+#include <cctype>
+#include <iostream>
+#include <stack>
+#include <string>
+
+
+class Solution {
+public:
+  auto decodeString(const std::string &s) -> std::string {
+    std::stack<int> counts;
+    std::stack<std::string> results;
+    std::string cur;
+    int num = 0;
+
+    for (char ch : s) {
+      if (std::isdigit(static_cast<unsigned char>(ch))) {
+        num = num * 10 + (ch - '0');
+      } else if (ch == '[') {
+        counts.push(num);
+        results.push(cur);
+        num = 0;
+        cur.clear();
+      } else if (ch == ']') {
+        int rep = counts.top();
+        counts.pop();
+
+        std::string prev = results.top();
+        results.pop();
+
+        std::string expanded = "";
+        while (rep--)
+          expanded += cur;
+
+        cur = std::move(prev) + expanded;
+      } else {
+        cur += ch;
+      }
+    }
+
+    return cur;
+  }
+};
+
+auto main() -> int {
+  std::cin.tie(nullptr)->sync_with_stdio(false);
+
+  std::string s = "3[a2[c]]";
+  Solution sol;
+  std::cout << sol.decodeString(s) << '\n';
+}
+```
+
+<img src="https://raw.githubusercontent.com/bianwoyali-design/Img/main/Img/20260413145012202.png"/>
