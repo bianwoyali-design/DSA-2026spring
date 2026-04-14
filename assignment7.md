@@ -147,7 +147,7 @@ dfs, https://leetcode.cn/problems/sum-root-to-leaf-numbers/
 
 代码：
 
-```python
+```cpp
 #include <iostream>
 #include <optional>
 #include <queue>
@@ -264,7 +264,7 @@ tree, http://cs101.openjudge.cn/practice/22158/
 
 代码：
 
-```python
+```cpp
 #include <iostream>
 #include <string>
 
@@ -339,11 +339,11 @@ dfs, stack, http://cs101.openjudge.cn/practice/24729/
 
 思路：
 
-
+用长子兄弟法实现了一下。
 
 代码：
 
-```python
+```cpp
 #include <cstddef>
 #include <iostream>
 #include <string>
@@ -357,7 +357,7 @@ struct TreeNode {
 
 class TreeUtils {
 private:
-  static auto praseNode(const std::string &data, size_t &ptr) -> TreeNode * {
+  static auto parseNode(const std::string &data, size_t &ptr) -> TreeNode * {
     if (ptr >= data.size())
       return nullptr;
 
@@ -369,7 +369,7 @@ private:
 
       TreeNode *prev = nullptr;
       while (ptr < data.size() && data[ptr] != ')') {
-        auto child = praseNode(data, ptr);
+        auto child = parseNode(data, ptr);
         if (!root->first_child)
           root->first_child = child;
         else
@@ -411,7 +411,7 @@ public:
       return nullptr;
 
     size_t ptr = 0;
-    return praseNode(data, ptr);
+    return parseNode(data, ptr);
   }
 
   static auto preorderTraversal(TreeNode *root) -> std::string {
@@ -458,7 +458,7 @@ tree, http://cs101.openjudge.cn/practice/01577/
 
 代码
 
-```python
+```cpp
 #include <atomic>
 #include <cstddef>
 #include <iostream>
@@ -565,11 +565,11 @@ auto main() -> int {
 
 思路：
 
-可能是之前有图论基础，感觉不是很难，感觉最难的是括号嵌套树，可能是栈操作还不够熟练。
+可能是之前有图论基础，感觉是作业题里第二简单的，感觉最难的是括号嵌套树，可能是栈操作还不够熟练。
 
 代码
 
-```python
+```cpp
 #include <iostream>
 #include <vector>
 
