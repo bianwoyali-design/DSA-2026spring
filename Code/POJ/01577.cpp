@@ -54,11 +54,12 @@ public:
   }
 };
 
-void delete_tree(TreeNode* root) {
-    if (root == nullptr) return;
-    delete_tree(root->left);
-    delete_tree(root->right);
-    delete root;
+void delete_tree(TreeNode *root) {
+  if (root == nullptr)
+    return;
+  delete_tree(root->left);
+  delete_tree(root->right);
+  delete root;
 }
 
 auto main() -> int {
@@ -75,15 +76,14 @@ auto main() -> int {
       delete_tree(root);
       leaves.clear();
       continue;
-    }
-    if (line == "$") {
+    } else if (line == "$") {
       auto root = TreeUtils::buildBST(leaves);
       std::cout << TreeUtils::preorderTraversal(root) << '\n';
       delete_tree(root);
       leaves.clear();
       break;
     }
-    
+
     leaves += line;
   }
 }
