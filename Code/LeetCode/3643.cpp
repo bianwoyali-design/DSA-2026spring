@@ -1,4 +1,5 @@
 #include <iostream>
+#include <ranges>
 #include <utility>
 #include <vector>
 
@@ -21,8 +22,7 @@ auto main() -> int {
   Solution sol;
   auto res = sol.reverseSubmatrix(grid, 1, 0, 3);
   for (const auto &row : res) {
-    for (const auto v : row)
-      std::cout << v << ' ';
-    std::cout << '\n';
+    for (const auto &&[i, v] : std::views::zip(std::views::iota(0), row))
+      std::cout << v << " \n"[i + 1 == row.size()];
   }
 }
