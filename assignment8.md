@@ -263,9 +263,8 @@ struct TreeNode {
 class HuffmanTree {
 private:
   struct CompareNode {
-    /* Keep in mind that for std::priority_queue, the default comparator
-     * considers the first argument to have lower priority if the comparison
-     * returns true. */
+    /* The priority queue uses the comparator such that if comp(a, b) is true, a
+     * is placed below b, meaning a has a lower priority. */
     auto operator()(TreeNode *a, TreeNode *b) -> bool {
       if (a->freq != b->freq) {
         return a->freq > b->freq;
