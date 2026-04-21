@@ -263,8 +263,9 @@ struct TreeNode {
 class HuffmanTree {
 private:
   struct CompareNode {
-    /* Pay attention that in C++ std::priority_queue, the priority of the first param
-     * is lower than the second. */
+    /* Keep in mind that for std::priority_queue, the default comparator
+     * considers the first argument to have lower priority if the comparison
+     * returns true. */
     auto operator()(TreeNode *a, TreeNode *b) -> bool {
       if (a->freq != b->freq) {
         return a->freq > b->freq;
