@@ -1,16 +1,16 @@
 #include <iostream>
 #include <vector>
 
-struct TreeNode {
-  int value;
-  int height = 1;
-  TreeNode *left{};
-  TreeNode *right{};
-  TreeNode(int value) : value(value) {}
-};
-
-class AVL {
+template <typename Type> class AVL {
 private:
+  struct TreeNode {
+    Type value;
+    int height = 1;
+    TreeNode *left{};
+    TreeNode *right{};
+    TreeNode(const Type &value) : value(value) {}
+  };
+
   TreeNode *root = nullptr;
 
   auto _get_height(TreeNode *node) -> int {
@@ -47,7 +47,7 @@ private:
     return x;
   }
 
-  auto _insert(int value, TreeNode *node) -> TreeNode * {
+  auto _insert(const Type &value, TreeNode *node) -> TreeNode * {
     if (!node) {
       return new TreeNode(value);
     }
@@ -84,7 +84,7 @@ private:
     return node;
   }
 
-  auto _preorder(TreeNode *node, std::vector<int> &result) -> void {
+  auto _preorder(TreeNode *node, std::vector<Type> &result) -> void {
     if (!node) {
       return;
     }
@@ -93,10 +93,20 @@ private:
     _preorder(node->right, result);
   }
 
+  auto _clean(TreeNode *node) -> void {
+    if (!node)
+      return;
+    _clean(node->left);
+    _clean(node->right);
+    delete node;
+  }
+
 public:
   AVL() = default;
 
-  auto insert(int value) -> void {
+  ~AVL() { _clean(root); }
+
+  auto insert(const Type &value) -> void {
     if (!root) {
       root = new TreeNode(value);
     } else {
@@ -104,7 +114,7 @@ public:
     }
   }
 
-  auto preorder() -> std::vector<int> {
+  auto preorder() -> std::vector<Type> {
     std::vector<int> result;
     if (root) {
       _preorder(root, result);
@@ -119,7 +129,7 @@ auto main() -> int {
   int n;
   std::cin >> n;
 
-  auto avl = AVL();
+  AVL<int> avl;
 
   while (n--) {
     int value;
