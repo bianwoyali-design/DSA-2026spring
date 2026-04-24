@@ -1,6 +1,5 @@
 #include <algorithm>
 #include <array>
-#include <cstddef>
 #include <cstdint>
 #include <format>
 #include <iostream>
@@ -48,6 +47,7 @@ struct Config {
   int hp;
   int atk;
   int res_m;
+  int k;
   WarriorType type;
   std::string_view headquarter;
 };
@@ -56,7 +56,9 @@ class Warrior {
 public:
   explicit Warrior(const Config &cfg)
       : m_id(cfg.id), m_hp(cfg.hp), m_atk(cfg.atk),
-        m_headquarter(cfg.headquarter), m_type(cfg.type) {}
+        m_headquarter(cfg.headquarter), m_type(cfg.type) {
+    m_weapons.reserve(m_max_weapons);
+  }
 
   virtual ~Warrior() = default;
 
@@ -106,7 +108,7 @@ public:
   void loot(Warrior *obj) {
     if (!obj)
       return;
-    int size = static_cast<std::uint8_t>(obj->m_weapons.size());
+    int size = static_cast<int>(obj->m_weapons.size());
     int i = 0;
     for (; i < size && m_weapons.size() < m_max_weapons &&
            obj->m_weapons[i].type != WeaponType::ARROW;
@@ -132,13 +134,13 @@ public:
                  counts[1], counts[2], m_hp);
   }
 
-  virtual void print_extra_info() const noexcept = 0;
+  virtual void print_extra_info() const noexcept {}
 
   virtual void attack(Warrior *obj) noexcept {
     if (!obj || m_weapons.empty() || m_hp == 0)
       return;
 
-    int n = static_cast<std::uint8_t>(m_weapons.size());
+    int n = static_cast<int>(m_weapons.size());
     for (int i : std::views::iota(0, n)) {
       auto &weapon = m_weapons[m_iter];
 
@@ -172,7 +174,7 @@ protected:
   int m_hp;
   int m_atk;
   WarriorType m_type;
-  const int m_max_weapons = 10;
+  static constexpr int m_max_weapons = 10;
   std::string_view m_headquarter;
   int m_iter{0};
 
@@ -201,7 +203,6 @@ public:
     std::println("{} {} dragon {} yelled in city {}", time,
                  get_headquarter_name(), get_id(), pos);
   }
-  void print_extra_info() const noexcept override {}
 };
 
 class Ninja : public Warrior {
@@ -214,7 +215,6 @@ public:
         static_cast<WeaponType>((cfg.id + 1) % 3),
         static_cast<WeaponType>((cfg.id + 1) % 3) == WeaponType::ARROW ? 2 : 1);
   }
-  void print_extra_info() const noexcept override {}
 };
 
 class Iceman : public Warrior {
@@ -226,14 +226,12 @@ public:
   }
 
   void move_take_blood() { m_hp -= m_hp / 10; }
-  void print_extra_info() const noexcept override {}
 };
 
-int K;
 class Lion : public Warrior {
 public:
-  explicit Lion(const Config &cfg) : Warrior(cfg) {
-    m_loyalty = cfg.res_m;
+  explicit Lion(const Config &cfg)
+      : Warrior(cfg), m_loyalty(cfg.res_m), m_K(cfg.k) {
     m_weapons.emplace_back(
         static_cast<WeaponType>(cfg.id % 3),
         static_cast<WeaponType>(cfg.id % 3) == WeaponType::ARROW ? 2 : 1);
@@ -246,7 +244,7 @@ public:
 
 private:
   int m_loyalty;
-  const int m_K = K;
+  int m_K;
 };
 
 class Wolf : public Warrior {
@@ -300,14 +298,14 @@ public:
       }
     }
   }
-  void print_extra_info() const noexcept override {}
 };
 
 class Headquarter {
 public:
   explicit Headquarter(const std::array<int, WARRIOR_COUNT> &atk, int initial_m,
-                       const std::array<int, WARRIOR_COUNT> &hp_costs, int N)
-      : m_atk(atk), m_total_m(initial_m), m_costs(hp_costs), m_N(N) {}
+                       const std::array<int, WARRIOR_COUNT> &hp_costs, int N,
+                       int K)
+      : m_atk(atk), m_total_m(initial_m), m_costs(hp_costs), m_N(N), m_K(K) {}
 
   virtual ~Headquarter() = default;
 
@@ -352,6 +350,7 @@ public:
 protected:
   int m_total_m;
   int m_N;
+  int m_K;
   const std::array<int, WARRIOR_COUNT> &m_costs;
   const std::array<int, WARRIOR_COUNT> &m_atk;
   std::array<int, WARRIOR_COUNT> m_counts{0};
@@ -372,6 +371,7 @@ private:
                   .hp = cost,
                   .atk = atk,
                   .res_m = m_total_m,
+                  .k = m_K,
                   .type = type,
                   .headquarter = get_name()};
     switch (type) {
@@ -663,7 +663,7 @@ auto main() -> int {
     return 0;
 
   for (int caseIdx : std::views::iota(1, t + 1)) {
-    int M, N, T;
+    int M, N, K, T;
     std::cin >> M >> N >> K >> T;
     std::array<int, WARRIOR_COUNT> warrior_HP;
     for (int &hp : warrior_HP)
@@ -675,8 +675,8 @@ auto main() -> int {
     std::println("Case {}:", caseIdx);
 
     std::array<std::unique_ptr<Headquarter>, 2> bases = {
-        std::make_unique<RedHeadquarter>(warrior_ATK, M, warrior_HP, N),
-        std::make_unique<BlueHeadquarter>(warrior_ATK, M, warrior_HP, N)};
+        std::make_unique<RedHeadquarter>(warrior_ATK, M, warrior_HP, N, K),
+        std::make_unique<BlueHeadquarter>(warrior_ATK, M, warrior_HP, N, K)};
 
     std::vector<City> cities;
     cities.reserve(N + 2);

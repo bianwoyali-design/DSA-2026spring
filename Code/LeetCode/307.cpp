@@ -53,9 +53,7 @@ public:
                        const Type &de = Type())
       : n(data.size()), func(func), default_val(de) {}
 
-  virtual auto update(size_t i, const Type &value) -> void = 0;
-  virtual auto query(size_t l, size_t r) -> Type = 0;
-  virtual ~SegmentTree() = default;
+  ~SegmentTree() = default;
 };
 
 template <typename Type, typename Func>
@@ -120,11 +118,11 @@ public:
     _build(data, 1, 0, this->n - 1);
   }
 
-  auto update(size_t i, const Type &value) -> void override {
+  auto update(size_t i, const Type &value) -> void {
     _update(1, 0, this->n - 1, i, value);
   }
 
-  auto query(size_t l, size_t r) -> Type override {
+  auto query(size_t l, size_t r) -> Type {
     return _query(1, 0, this->n - 1, l, r);
   }
 };
@@ -144,7 +142,7 @@ public:
     }
   }
 
-  auto update(size_t i, const Type &value) -> void override {
+  auto update(size_t i, const Type &value) -> void {
     i += this->n;
     this->tree[i] = value;
 
@@ -154,7 +152,7 @@ public:
     }
   }
 
-  auto query(size_t l, size_t r) -> Type override {
+  auto query(size_t l, size_t r) -> Type {
     Type res = this->default_val;
     l += this->n;
     r += this->n;
