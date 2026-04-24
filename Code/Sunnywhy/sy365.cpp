@@ -42,7 +42,13 @@ private:
   }
 
 public:
-  explicit BinaryHeap(std::vector<int> &x) : heap(std::move(x)) {}
+  explicit BinaryHeap(std::vector<Type> &x) : heap(std::move(x)) {
+    int i = (heap.size() >> 1) - 1;
+    while (i >= 0) {
+      perc_down(i);
+      --i;
+    }
+  }
 
   auto insert(auto &&item) -> void {
     heap.push_back(item);
@@ -57,14 +63,7 @@ public:
     return result;
   }
 
-  auto heapify() -> std::vector<Type> {
-    int i = (heap.size() >> 1) - 1;
-    while (i >= 0) {
-      perc_down(i);
-      --i;
-    }
-    return heap;
-  }
+  auto heapify() -> std::vector<Type> { return heap; }
 };
 
 auto main() -> int {
