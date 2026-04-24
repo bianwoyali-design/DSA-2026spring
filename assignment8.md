@@ -966,11 +966,13 @@ public:
 ```
 
 ```cpp
-template <typename Type> class ZWKLazySegmentTree {
+template <typename Type, typename Func> class ZWKLazySegmentTree {
 private:
   size_t size;
   size_t base;
   size_t height;
+  Type default_val;
+  Func func;
   std::vector<Type> tree;
   std::vector<Type> lazy;
   std::vector<bool> has_lazy;
@@ -1003,14 +1005,15 @@ private:
       if (has_lazy[p]) {
         tree[p] = lazy[p] * static_cast<Type>(len);
       } else {
-        tree[p] = tree[p << 1] + tree[p << 1 | 1];
+        tree[p] = func(tree[p << 1], tree[p << 1 | 1]);
       }
     }
   }
 
 public:
-  explicit ZWKLazySegmentTree(const std::vector<Type> &data)
-      : size(data.size()) {
+  explicit ZWKLazySegmentTree(const std::vector<Type> &data,
+                                  Func f = Func{}, const Type &de = Type())
+      : size(data.size()), default_val(de), func(f) {
     base = 1;
     height = 0;
     while (base < size) {
@@ -1018,15 +1021,15 @@ public:
       ++height;
     }
 
-    tree.assign(base << 1, 0);
-    lazy.assign(base << 1, 0);
+    tree.assign(base << 1, default_val);
+    lazy.assign(base << 1, default_val);
     has_lazy.assign(base << 1, false);
 
     for (size_t i = 0; i < size; ++i) {
       tree[base + i] = data[i];
     }
     for (size_t i = base - 1; i > 0; --i) {
-      tree[i] = tree[i << 1] + tree[i << 1 | 1];
+      tree[i] = func(tree[i << 1], tree[i << 1 | 1]);
     }
   }
 
@@ -1062,7 +1065,7 @@ public:
 
   auto query_range(size_t l, size_t r) -> Type {
     if (size == 0 || l > r || r >= size) {
-      return 0;
+      return default_val;
     }
 
     size_t left = l + base;
@@ -1070,20 +1073,20 @@ public:
     _push(left);
     _push(right - 1);
 
-    Type left_res = 0;
-    Type right_res = 0;
+    Type left_res = default_val;
+    Type right_res = default_val;
     while (left < right) {
       if (left & 1) {
-        left_res += tree[left++];
+        left_res = func(left_res, tree[left++]);
       }
       if (right & 1) {
-        right_res = tree[--right] + right_res;
+        right_res = func(tree[--right], right_res);
       }
       left >>= 1;
       right >>= 1;
     }
 
-    return left_res + right_res;
+    return func(left_res, right_res);
   }
 };
 ```
