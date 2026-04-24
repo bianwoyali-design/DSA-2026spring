@@ -1,5 +1,6 @@
 #include <cstddef>
 #include <iostream>
+#include <queue>
 #include <vector>
 
 class NumArray {
@@ -168,6 +169,241 @@ public:
       r >>= 1;
     }
     return res;
+  }
+};
+
+template <typename Type, typename Func> class LazySegTree {
+private:
+  size_t n;
+  Type default_val;
+  Func func;
+  std::vector<Type> tree;
+  std::vector<Type> lazy;
+  std::vector<bool> has_lazy;
+
+  auto _perc_down(size_t node, size_t start, size_t end) -> void {
+    if (start == end || !has_lazy[node]) {
+      return;
+    }
+
+    if (has_lazy[node]) {
+      const auto mid = start + ((end - start) >> 1);
+      const auto left = node << 1;
+      const auto right = node << 1 | 1;
+
+      lazy[left] = lazy[node];
+      has_lazy[left] = true;
+      tree[left] = lazy[node] * (mid + 1 - start);
+
+      lazy[right] = lazy[node];
+      has_lazy[right] = true;
+      tree[right] = lazy[node] * (end - mid);
+
+      lazy[node] = 0;
+      has_lazy[node] = false;
+    }
+  }
+
+  auto _build(const std::vector<Type> &data, size_t node, size_t start,
+              size_t end) -> void {
+    if (start == end) {
+      tree[node] = data[start];
+      return;
+    }
+
+    const auto mid = start + ((end - start) >> 1);
+    _build(data, node << 1, start, mid);
+    _build(data, node << 1 | 1, mid + 1, end);
+
+    tree[node] = func(tree[node << 1], tree[node << 1 | 1]);
+  }
+
+  auto _update_range(size_t node, size_t start, size_t end, size_t l, size_t r,
+                     Type value) -> void {
+    if (l <= start && end <= r) {
+      lazy[node] = value;
+      has_lazy[node] = true;
+      tree[node] = (end - start + 1) * value;
+      return;
+    }
+
+    _perc_down(node, start, end);
+
+    const auto mid = start + ((end - start) >> 1);
+    if (l <= mid) {
+      _update_range(node << 1, start, mid, l, r, value);
+    }
+    if (r > mid) {
+      _update_range(node << 1 | 1, mid + 1, end, l, r, value);
+    }
+
+    tree[node] = func(tree[node << 1], tree[node << 1 | 1]);
+  }
+
+  auto _query_range(size_t node, size_t start, size_t end, size_t l, size_t r)
+      -> Type {
+    if (l <= start && end <= r) {
+      return tree[node];
+    }
+
+    _perc_down(node, start, end);
+    const auto mid = start + ((end - start) >> 1);
+    if (r <= mid) {
+      return _query_range(node << 1, start, mid, l, r);
+    }
+    if (l > mid) {
+      return _query_range(node << 1 | 1, mid + 1, end, l, r);
+    }
+
+    return func(_query_range(node << 1, start, mid, l, r),
+                _query_range(node << 1 | 1, mid + 1, end, l, r));
+  }
+
+public:
+  explicit LazySegTree(const std::vector<Type> &data, Func func = Func{},
+                       const Type &de = Type())
+      : n(data.size()), default_val(de), func(func) {
+    tree.assign(4 * n, default_val);
+    lazy.assign(4 * n, default_val);
+    has_lazy.assign(4 * n, false);
+    if (n > 0) {
+      _build(data, 1, 0, n - 1);
+    }
+  }
+
+  auto update_range(size_t l, size_t r, Type value) -> void {
+    if (n == 0 || l > r) {
+      return;
+    }
+    _update_range(1, 0, n - 1, l, r, value);
+  }
+
+  auto query_range(size_t l, size_t r) -> Type {
+    if (n == 0 || l > r) {
+      return default_val;
+    }
+    return _query_range(1, 0, n - 1, l, r);
+  }
+};
+
+template <typename Type> class ZWKLazySegmentTree {
+private:
+  size_t size;
+  size_t base;
+  size_t height;
+  std::vector<Type> tree;
+  std::vector<Type> lazy;
+  std::vector<bool> has_lazy;
+
+  auto _apply(size_t p, const Type &value, size_t len) -> void {
+    tree[p] = value * static_cast<Type>(len);
+    if (p < base) {
+      lazy[p] = value;
+      has_lazy[p] = true;
+    }
+  }
+
+  auto _push(size_t p) -> void {
+    for (size_t s = height; s > 0; --s) {
+      const size_t i = p >> s;
+      if (!has_lazy[i]) {
+        continue;
+      }
+
+      const size_t len = static_cast<size_t>(1) << (s - 1);
+      _apply(i << 1, lazy[i], len);
+      _apply(i << 1 | 1, lazy[i], len);
+      has_lazy[i] = false;
+    }
+  }
+
+  auto _pull(size_t p) -> void {
+    size_t len = 2;
+    for (p >>= 1; p > 0; p >>= 1, len <<= 1) {
+      if (has_lazy[p]) {
+        tree[p] = lazy[p] * static_cast<Type>(len);
+      } else {
+        tree[p] = tree[p << 1] + tree[p << 1 | 1];
+      }
+    }
+  }
+
+public:
+  explicit ZWKLazySegmentTree(const std::vector<Type> &data)
+      : size(data.size()) {
+    base = 1;
+    height = 0;
+    while (base < size) {
+      base <<= 1;
+      ++height;
+    }
+
+    tree.assign(base << 1, 0);
+    lazy.assign(base << 1, 0);
+    has_lazy.assign(base << 1, false);
+
+    for (size_t i = 0; i < size; ++i) {
+      tree[base + i] = data[i];
+    }
+    for (size_t i = base - 1; i > 0; --i) {
+      tree[i] = tree[i << 1] + tree[i << 1 | 1];
+    }
+  }
+
+  auto update_range(size_t l, size_t r, const Type &value) -> void {
+    if (size == 0 || l > r || r >= size) {
+      return;
+    }
+
+    size_t left = l + base;
+    size_t right = r + base + 1;
+    const size_t left_origin = left;
+    const size_t right_origin = right;
+
+    _push(left_origin);
+    _push(right_origin - 1);
+
+    size_t len = 1;
+    while (left < right) {
+      if (left & 1) {
+        _apply(left++, value, len);
+      }
+      if (right & 1) {
+        _apply(--right, value, len);
+      }
+      left >>= 1;
+      right >>= 1;
+      len <<= 1;
+    }
+
+    _pull(left_origin);
+    _pull(right_origin - 1);
+  }
+
+  auto query_range(size_t l, size_t r) -> Type {
+    if (size == 0 || l > r || r >= size) {
+      return 0;
+    }
+
+    size_t left = l + base;
+    size_t right = r + base + 1;
+    _push(left);
+    _push(right - 1);
+
+    Type left_res = 0;
+    Type right_res = 0;
+    while (left < right) {
+      if (left & 1) {
+        left_res += tree[left++];
+      }
+      if (right & 1) {
+        right_res = tree[--right] + right_res;
+      }
+      left >>= 1;
+      right >>= 1;
+    }
+
+    return left_res + right_res;
   }
 };
 

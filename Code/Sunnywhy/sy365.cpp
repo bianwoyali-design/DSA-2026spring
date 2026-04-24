@@ -55,7 +55,7 @@ public:
     perc_up(static_cast<int>(heap.size() - 1));
   }
 
-  auto pop_root() -> int {
+  auto pop_front() -> int {
     std::swap(heap.front(), heap.back());
     const int result = heap.back();
     heap.pop_back();

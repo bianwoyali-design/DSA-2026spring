@@ -1,7 +1,7 @@
 # DSA Assignment #8: 🌲（3/3）
 
 *Updated 2026-04-21 19:09 GMT+8*
- *Compiled by <mark>同学的姓名、院系</mark> (2026 Spring)*
+ *Compiled by <mark>张真铭 元培学院</mark> (2026 Spring)*
 
 
 
@@ -716,176 +716,117 @@ segment tree, https://leetcode.cn/problems/range-sum-query-mutable/
 代码
 
 ```cpp
-/* BIT */
-class NumArray {
+template <typename Type, typename Func> class LazySegTree {
 private:
-  vector<int> tree;
-  vector<int> &nums;
-
-  auto lowBit(int x) -> int { return x & -x; }
-
-  void add(int index, int val) {
-    while (index < tree.size()) {
-      tree[index] += val;
-      index += lowBit(index);
-    }
-  }
-
-  auto prefixSum(int index) -> int {
-    int sum = 0;
-    while (index > 0) {
-      sum += tree[index];
-      index -= lowBit(index);
-    }
-    return sum;
-  }
-
-public:
-  NumArray(vector<int> &nums) : tree(nums.size() + 1), nums(nums) {
-    for (int i = 0; i < nums.size(); i++)
-      add(i + 1, nums[i]);
-  }
-
-  void update(int index, int val) {
-    add(index + 1, val - nums[index]);
-    nums[index] = val;
-  }
-
-  auto sumRange(int left, int right) -> int {
-    return prefixSum(right + 1) - prefixSum(left);
-  }
-};
-
-/* SegmentTree */
-template <typename Type, typename Func> class SegmentTree {
-protected:
   size_t n;
-  Func func;
   Type default_val;
+  Func func;
   std::vector<Type> tree;
+  std::vector<Type> lazy;
+  std::vector<bool> has_lazy;
 
-public:
-  explicit SegmentTree(const std::vector<Type> &data, Func func = Func{},
-                       const Type &de = Type())
-      : n(data.size()), func(func), default_val(de) {}
+  auto _perc_down(size_t node, size_t start, size_t end) -> void {
+    if (start == end || !has_lazy[node]) {
+      return;
+    }
 
-  virtual auto update(size_t i, const Type &value) -> void = 0;
-  virtual auto query(size_t l, size_t r) -> Type = 0;
-  virtual ~SegmentTree() = default;
-};
+    if (has_lazy[node]) {
+      const auto mid = start + ((end - start) >> 1);
+      const auto left = node << 1;
+      const auto right = node << 1 | 1;
 
-template <typename Type, typename Func>
-class RecursiveSegmentTree : public SegmentTree<Type, Func> {
-private:
+      lazy[left] = lazy[node];
+      has_lazy[left] = true;
+      tree[left] = lazy[node] * (mid + 1 - start);
+
+      lazy[right] = lazy[node];
+      has_lazy[right] = true;
+      tree[right] = lazy[node] * (end - mid);
+
+      lazy[node] = 0;
+      has_lazy[node] = false;
+    }
+  }
+
   auto _build(const std::vector<Type> &data, size_t node, size_t start,
               size_t end) -> void {
     if (start == end) {
-      this->tree[node] = data[start];
+      tree[node] = data[start];
       return;
     }
 
-    auto mid = start + ((end - start) >> 1);
-    auto left = node << 1;
-    auto right = node << 1 | 1;
+    const auto mid = start + ((end - start) >> 1);
+    _build(data, node << 1, start, mid);
+    _build(data, node << 1 | 1, mid + 1, end);
 
-    _build(data, left, start, mid);
-    _build(data, right, mid + 1, end);
-
-    this->tree[node] = this->func(this->tree[left], this->tree[right]);
+    tree[node] = func(tree[node << 1], tree[node << 1 | 1]);
   }
 
-  auto _update(size_t node, size_t start, size_t end, size_t i,
-               const Type &value) -> void {
-    if (start == end) {
-      this->tree[node] = value;
+  auto _update_range(size_t node, size_t start, size_t end, size_t l, size_t r,
+                     Type value) -> void {
+    if (l <= start && end <= r) {
+      lazy[node] = value;
+      has_lazy[node] = true;
+      tree[node] = (end - start + 1) * value;
       return;
     }
 
-    auto mid = start + ((end - start) >> 1);
+    _perc_down(node, start, end);
 
-    if (i <= mid) {
-      _update(node << 1, start, mid, i, value);
-    } else {
-      _update(node << 1 | 1, mid + 1, end, i, value);
+    const auto mid = start + ((end - start) >> 1);
+    if (l <= mid) {
+      _update_range(node << 1, start, mid, l, r, value);
+    }
+    if (r > mid) {
+      _update_range(node << 1 | 1, mid + 1, end, l, r, value);
     }
 
-    this->tree[node] =
-        this->func(this->tree[node << 1], this->tree[node << 1 | 1]);
+    tree[node] = func(tree[node << 1], tree[node << 1 | 1]);
   }
 
-  auto _query(size_t node, size_t start, size_t end, size_t l, size_t r)
+  auto _query_range(size_t node, size_t start, size_t end, size_t l, size_t r)
       -> Type {
     if (l <= start && end <= r) {
-      return this->tree[node];
+      return tree[node];
     }
-    auto mid = start + ((end - start) >> 1);
-    if (r <= mid)
-      return _query(node << 1, start, mid, l, r);
-    if (l > mid)
-      return _query(node << 1 | 1, mid + 1, end, l, r);
 
-    return this->func(_query(node << 1, start, mid, l, r),
-                      _query(node << 1 | 1, mid + 1, end, l, r));
+    _perc_down(node, start, end);
+    const auto mid = start + ((end - start) >> 1);
+    if (r <= mid) {
+      return _query_range(node << 1, start, mid, l, r);
+    }
+    if (l > mid) {
+      return _query_range(node << 1 | 1, mid + 1, end, l, r);
+    }
+
+    return func(_query_range(node << 1, start, mid, l, r),
+                _query_range(node << 1 | 1, mid + 1, end, l, r));
   }
 
 public:
-  explicit RecursiveSegmentTree(const std::vector<Type> &data,
-                                Func func = Func{}, const Type &de = Type())
-      : SegmentTree<Type, Func>(data, func, de) {
-    this->tree.assign(4 * this->n, this->default_val);
-    _build(data, 1, 0, this->n - 1);
-  }
-
-  auto update(size_t i, const Type &value) -> void override {
-    _update(1, 0, this->n - 1, i, value);
-  }
-
-  auto query(size_t l, size_t r) -> Type override {
-    return _query(1, 0, this->n - 1, l, r);
-  }
-};
-
-template <typename Type, typename Func>
-class ZWKSegmentTree : public SegmentTree<Type, Func> {
-public:
-  explicit ZWKSegmentTree(const std::vector<Type> &data, Func func = Func{},
-                          const Type &de = Type())
-      : SegmentTree<Type, Func>(data, func, de) {
-    this->tree.assign(2 * this->n, this->default_val);
-    for (int i = 0; i < this->n; ++i) {
-      this->tree[i + this->n] = data[i];
-    }
-    for (int i = this->n - 1; i > 0; --i) {
-      this->tree[i] = this->func(this->tree[i << 1], this->tree[i << 1 | 1]);
+  explicit LazySegTree(const std::vector<Type> &data, Func func = Func{},
+                       const Type &de = Type())
+      : n(data.size()), default_val(de), func(func) {
+    tree.assign(4 * n, default_val);
+    lazy.assign(4 * n, default_val);
+    has_lazy.assign(4 * n, false);
+    if (n > 0) {
+      _build(data, 1, 0, n - 1);
     }
   }
 
-  auto update(size_t i, const Type &value) -> void override {
-    i += this->n;
-    this->tree[i] = value;
-
-    while (i > 1) {
-      this->tree[i >> 1] = this->func(this->tree[i], this->tree[i ^ 1]);
-      i >>= 1;
+  auto update_range(size_t l, size_t r, Type value) -> void {
+    if (n == 0 || l > r) {
+      return;
     }
+    _update_range(1, 0, n - 1, l, r, value);
   }
 
-  auto query(size_t l, size_t r) -> Type override {
-    Type res = this->default_val;
-    l += this->n;
-    r += this->n;
-
-    while (l < r) {
-      if (l & 1) {
-        res = this->func(res, this->tree[l++]);
-      }
-      if (r & 1) {
-        res = this->func(res, this->tree[--r]);
-      }
-      l >>= 1;
-      r >>= 1;
+  auto query_range(size_t l, size_t r) -> Type {
+    if (n == 0 || l > r) {
+      return default_val;
     }
-    return res;
+    return _query_range(1, 0, n - 1, l, r);
   }
 };
 ```
@@ -902,7 +843,255 @@ public:
 
 <mark>如果发现作业题目相对简单，有否寻找额外的练习题目，如“数算2026spring每日选做”、LeetCode、Codeforces、洛谷等网站上的题目。</mark>
 
+### 懒标记
+
+普通的线段树可以处理单点修改，区间查询，但是若要修改某个区间，传统的做法是遍历每个点去修改，复杂度会退化成$O(nlogn)$，因此需要懒标记去处理。
+
+#### 原理
+
+使用一个数组`lazy`存储每个节点需要修改的值，将需要修改的区间内每个需要修改的节点都打上标记，并只在执行查询操作时修改结点的值同时向下（子节点）传递修改操作，这样只需要处理要访问部分的修改从而提高性能
+
+#### 核心操作
+
+1. **打标记**：当修改的区间完全覆盖了当前节点表示的范围，就不再递归，直接在当前节点记下修改值，并更新当前节点的总和。
+2. **存标记**：每个节点多一个变量 lazy，记录“我有多少增量还没传给儿子”。
+3. **下传标记 (push_down)**：当你不得不去访问当前节点的子节点时（因为要查询或修改更小的区间），顺便把身上的标记传给左右儿子，然后清空自己的标记。
+
+#### 具体实现
+
+这里实现了一个区间修改+线性运算的线段树，包括了递归形式和zkw线段树形式
+
+```cpp
+template <typename Type, typename Func> class LazySegTree {
+private:
+  size_t n;
+  Type default_val;
+  Func func;
+  std::vector<Type> tree;
+  std::vector<Type> lazy;
+  std::vector<bool> has_lazy;
+
+  auto _perc_down(size_t node, size_t start, size_t end) -> void {
+    if (has_lazy[node]) {
+      const auto mid = start + ((end - start) >> 1);
+      const auto left = node << 1;
+      const auto right = node << 1 | 1;
+
+      lazy[left] = lazy[node];
+      has_lazy[left] = true;
+      tree[left] = lazy[node] * (mid + 1 - start);
+
+      lazy[right] = lazy[node];
+      has_lazy[right] = true;
+      tree[right] = lazy[node] * (end - mid);
+
+      lazy[node] = 0;
+      has_lazy[node] = false;
+    }
+  }
+
+  auto _build(const std::vector<Type> &data, size_t node, size_t start,
+              size_t end) -> void {
+    if (start == end) {
+      tree[node] = data[start];
+      return;
+    }
+
+    const auto mid = start + ((end - start) >> 1);
+    _build(data, node << 1, start, mid);
+    _build(data, node << 1 | 1, mid + 1, end);
+
+    tree[node] = func(tree[node << 1], tree[node << 1 | 1]);
+  }
+
+  auto _update_range(size_t node, size_t start, size_t end, size_t l, size_t r,
+                     Type value) -> void {
+    if (l <= start && end <= r) {
+      lazy[node] = value;
+      has_lazy[node] = true;
+      tree[node] = (end - start + 1) * value;
+      return;
+    }
+
+    _perc_down(node, start, end);
+
+    const auto mid = start + ((end - start) >> 1);
+    if (l <= mid) {
+      _update_range(node << 1, start, mid, l, r, value);
+    }
+    if (r > mid) {
+      _update_range(node << 1 | 1, mid + 1, end, l, r, value);
+    }
+
+    tree[node] = func(tree[node << 1], tree[node << 1 | 1]);
+  }
+
+  auto _query_range(size_t node, size_t start, size_t end, size_t l, size_t r)
+      -> Type {
+    if (l <= start && end <= r) {
+      return tree[node];
+    }
+
+    _perc_down(node, start, end);
+    const auto mid = start + ((end - start) >> 1);
+    if (r <= mid) {
+      return _query_range(node << 1, start, mid, l, r);
+    }
+    if (l > mid) {
+      return _query_range(node << 1 | 1, mid + 1, end, l, r);
+    }
+
+    return func(_query_range(node << 1, start, end, l, r),
+                _query_range(node << 1 | 1, start, end, l, r));
+  }
+
+public:
+  explicit LazySegTree(const std::vector<Type> &data, Func func = Func{},
+                       const Type &de = Type())
+      : n(data.size()), default_val(de) {
+    tree.assign(4 * n, default_val);
+    lazy.assign(4 * n, default_val);
+    has_lazy.assign(4 * n, false);
+    _build(data, 1, 0, n - 1);
+  }
+
+  auto update_range(size_t l, size_t r, Type value) -> void {
+    _update_range(1, 0, n - 1, l, r, value);
+  }
+
+  auto query_range(size_t l, size_t r) -> Type {
+    return _query_range(1, 0, n - 1, l, r);
+  }
+};
+```
+
+```cpp
+template <typename Type> class ZWKLazySegmentTree {
+private:
+  size_t size;
+  size_t base;
+  size_t height;
+  std::vector<Type> tree;
+  std::vector<Type> lazy;
+  std::vector<bool> has_lazy;
+
+  auto _apply(size_t p, const Type &value, size_t len) -> void {
+    tree[p] = value * static_cast<Type>(len);
+    if (p < base) {
+      lazy[p] = value;
+      has_lazy[p] = true;
+    }
+  }
+
+  auto _push(size_t p) -> void {
+    for (size_t s = height; s > 0; --s) {
+      const size_t i = p >> s;
+      if (!has_lazy[i]) {
+        continue;
+      }
+
+      const size_t len = static_cast<size_t>(1) << (s - 1);
+      _apply(i << 1, lazy[i], len);
+      _apply(i << 1 | 1, lazy[i], len);
+      has_lazy[i] = false;
+    }
+  }
+
+  auto _pull(size_t p) -> void {
+    size_t len = 2;
+    for (p >>= 1; p > 0; p >>= 1, len <<= 1) {
+      if (has_lazy[p]) {
+        tree[p] = lazy[p] * static_cast<Type>(len);
+      } else {
+        tree[p] = tree[p << 1] + tree[p << 1 | 1];
+      }
+    }
+  }
+
+public:
+  explicit ZWKLazySegmentTree(const std::vector<Type> &data)
+      : size(data.size()) {
+    base = 1;
+    height = 0;
+    while (base < size) {
+      base <<= 1;
+      ++height;
+    }
+
+    tree.assign(base << 1, 0);
+    lazy.assign(base << 1, 0);
+    has_lazy.assign(base << 1, false);
+
+    for (size_t i = 0; i < size; ++i) {
+      tree[base + i] = data[i];
+    }
+    for (size_t i = base - 1; i > 0; --i) {
+      tree[i] = tree[i << 1] + tree[i << 1 | 1];
+    }
+  }
+
+  auto update_range(size_t l, size_t r, const Type &value) -> void {
+    if (size == 0 || l > r || r >= size) {
+      return;
+    }
+
+    size_t left = l + base;
+    size_t right = r + base + 1;
+    const size_t left_origin = left;
+    const size_t right_origin = right;
+
+    _push(left_origin);
+    _push(right_origin - 1);
+
+    size_t len = 1;
+    while (left < right) {
+      if (left & 1) {
+        _apply(left++, value, len);
+      }
+      if (right & 1) {
+        _apply(--right, value, len);
+      }
+      left >>= 1;
+      right >>= 1;
+      len <<= 1;
+    }
+
+    _pull(left_origin);
+    _pull(right_origin - 1);
+  }
+
+  auto query_range(size_t l, size_t r) -> Type {
+    if (size == 0 || l > r || r >= size) {
+      return 0;
+    }
+
+    size_t left = l + base;
+    size_t right = r + base + 1;
+    _push(left);
+    _push(right - 1);
+
+    Type left_res = 0;
+    Type right_res = 0;
+    while (left < right) {
+      if (left & 1) {
+        left_res += tree[left++];
+      }
+      if (right & 1) {
+        right_res = tree[--right] + right_res;
+      }
+      left >>= 1;
+      right >>= 1;
+    }
+
+    return left_res + right_res;
+  }
+};
+```
 
 
 
+#### 注意事项
 
+1. **恒等元与累加**：如果是区间加法，懒标记累加；如果是区间修改（全部改成某个数），懒标记直接覆盖。
+2. **标记对结果的影响**：对于区间求和，当前节点的 tree[node] 需要增加 lazy_val * (区间长度)。如果是区间求最大值，只需增加 lazy_val 即可。
+3. **标记的顺序**：如果一个线段树同时有“区间加法”和“区间乘法”两种标记，下传的顺序非常重要（通常需要维护两个标记，并定义好先加后乘还是先乘后加的逻辑）
