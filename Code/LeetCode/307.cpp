@@ -1,6 +1,5 @@
 #include <cstddef>
 #include <iostream>
-#include <queue>
 #include <vector>
 
 class NumArray {
