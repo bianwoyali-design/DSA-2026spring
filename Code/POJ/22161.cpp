@@ -1,3 +1,4 @@
+#include <algorithm>
 #include <iostream>
 #include <queue>
 #include <unordered_map>
@@ -30,8 +31,21 @@ private:
 
   std::unordered_map<char, std::string> codes;
   std::priority_queue<TreeNode *, std::vector<TreeNode *>, CompareNode> pq;
+  TreeNode *root{};
+
+  auto destroy(TreeNode *node) -> void {
+    if (!node) {
+      return;
+    }
+
+    destroy(node->left);
+    destroy(node->right);
+    delete node;
+  }
 
 public:
+  ~HuffmanTree() { destroy(root); }
+
   auto build_huffman_tree(const std::vector<std::pair<char, int>> &char_set)
       -> TreeNode * {
     for (auto &&x : char_set) {
@@ -48,7 +62,7 @@ public:
       pq.emplace(node);
     }
 
-    auto root = pq.top();
+    root = pq.top();
     auto encode_huffman_tree = [&](auto &&self, TreeNode *node,
                                    const std::string &code) -> void {
       if (!node->left && !node->right) {
