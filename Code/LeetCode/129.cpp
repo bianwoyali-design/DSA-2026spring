@@ -1,4 +1,5 @@
 #include <iostream>
+#include <new>
 #include <optional>
 #include <queue>
 #include <vector>

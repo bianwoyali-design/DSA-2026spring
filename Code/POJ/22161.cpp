@@ -1,4 +1,3 @@
-#include <algorithm>
 #include <iostream>
 #include <queue>
 #include <unordered_map>
@@ -19,8 +18,6 @@ struct TreeNode {
 class HuffmanTree {
 private:
   struct CompareNode {
-    /* The priority queue uses the comparator such that if comp(a, b) is true, a
-     * is placed below b, meaning a has a lower priority. */
     auto operator()(TreeNode *a, TreeNode *b) -> bool {
       if (a->freq != b->freq) {
         return a->freq > b->freq;
@@ -44,6 +41,11 @@ private:
   }
 
 public:
+  HuffmanTree() = default;
+  HuffmanTree(const HuffmanTree &) = delete;
+  auto operator=(const HuffmanTree &) -> HuffmanTree & = delete;
+  HuffmanTree(HuffmanTree &&) = delete;
+  auto operator=(HuffmanTree &&) -> HuffmanTree & = delete;
   ~HuffmanTree() { destroy(root); }
 
   auto build_huffman_tree(const std::vector<std::pair<char, int>> &char_set)
@@ -57,8 +59,7 @@ public:
       pq.pop();
       auto right = pq.top();
       pq.pop();
-      auto node = new TreeNode(std::min(left->ch, right->ch),
-                               left->freq + right->freq, left, right);
+      auto node = new TreeNode('\0', left->freq + right->freq, left, right);
       pq.emplace(node);
     }
 
@@ -78,7 +79,7 @@ public:
     return root;
   }
 
-  auto encode_huffman(const std::string &str, TreeNode *root) -> std::string {
+  auto encode_huffman(const std::string &str) -> std::string {
     std::string code;
 
     for (auto &&c : str) {
@@ -140,7 +141,7 @@ auto main() -> int {
     if (ipt.front() == '1' || ipt.front() == '0') {
       std::cout << ht.decode_huffman(ipt, root) << '\n';
     } else {
-      std::cout << ht.encode_huffman(ipt, root) << '\n';
+      std::cout << ht.encode_huffman(ipt) << '\n';
     }
   }
 }
