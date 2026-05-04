@@ -13,21 +13,29 @@ public:
     std::array<std::uint16_t, 9> row_mask{};
     std::array<std::uint16_t, 9> col_mask{};
     std::array<std::uint16_t, 9> box_mask{};
-    std::array<std::uint8_t, 81> empty_box{};
+    std::array<int, 81> empty_box{};
     int empty_count = 0;
 
     auto box_id = [](int i, int j) -> int { return i / 3 * 3 + j / 3; };
 
+    auto add_digit = [&](int i, int j, int box, std::uint16_t bit) -> void {
+      row_mask[i] |= bit;
+      col_mask[j] |= bit;
+      box_mask[box] |= bit;
+    };
+    auto remove_digit = [&](int i, int j, int box, std::uint16_t bit) -> void {
+      row_mask[i] ^= bit;
+      col_mask[j] ^= bit;
+      box_mask[box] ^= bit;
+    };
+
     for (int i = 0; i < 9; ++i) {
       for (int j = 0; j < 9; ++j) {
         if (board[i][j] == '.') {
-          empty_box[empty_count++] = static_cast<std::uint8_t>(i * 9 + j);
+          empty_box[empty_count++] = i * 9 + j;
         } else {
           int num = static_cast<int>(board[i][j] - '1');
-          auto bit = static_cast<std::uint16_t>(1 << num);
-          row_mask[i] |= bit;
-          col_mask[j] |= bit;
-          box_mask[box_id(i, j)] |= bit;
+          add_digit(i, j, box_id(i, j), static_cast<std::uint16_t>(1u << num));
         }
       }
     }
@@ -74,17 +82,13 @@ public:
         auto bit = static_cast<std::uint16_t>(candidates & -candidates);
         int num = std::countr_zero(static_cast<unsigned>(bit));
         board[i][j] = static_cast<char>('1' + num);
-        row_mask[i] |= bit;
-        col_mask[j] |= bit;
-        box_mask[box] |= bit;
+        add_digit(i, j, box, bit);
 
         if (self(index + 1)) {
           return true;
         }
 
-        row_mask[i] ^= bit;
-        col_mask[j] ^= bit;
-        box_mask[box] ^= bit;
+        remove_digit(i, j, box, bit);
         candidates ^= bit;
       }
 
