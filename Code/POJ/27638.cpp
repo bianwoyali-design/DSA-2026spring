@@ -1,83 +1,71 @@
-#include <iostream>
-#include <vector>
 #include <algorithm>
-using namespace std;
+#include <iostream>
+#include <utility>
+#include <vector>
 
-struct TreeNode
-{
-    int val;
-    TreeNode *left;
-    TreeNode *right;
-    TreeNode(int x) : val(x), left(nullptr), right(nullptr) {}
+struct TreeNode {
+  int val;
+  TreeNode *left{};
+  TreeNode *right{};
+  TreeNode(int i) : val(i) {};
 };
 
-class Solution
-{
+class TreeUtils {
 private:
-    TreeNode *root;
-    int cnt_leafs = 0;
+  TreeNode *root;
+  int leafs = 0;
 
-    template <typename T>
-    auto height(T &node)
-    {
-        if (node == nullptr)
-            return -1;
-        return max(height(node->left), height(node->right)) + 1;
+  auto _get_height(TreeNode *node) -> int {
+    if (!node) {
+      return -1;
     }
+    return std::max(_get_height(node->left), _get_height(node->right)) + 1;
+  }
 
 public:
-    auto build_tree(vector<pair<int, int>> nodes)
-    {
-        int n = nodes.size();
-        vector<TreeNode *> tree_nodes(n);
-        vector<bool> has_parents(n, false);
+  TreeUtils(int n, const std::vector<std::pair<int, int>> &tree) {
+    std::vector<TreeNode *> node(n, nullptr);
+    std::vector<bool> has_parent(n, false);
 
-        for (int i = 0; i < n; ++i)
-            tree_nodes[i] = new TreeNode(i);
-
-        for (int i = 0; i < n; ++i)
-        {
-            auto [left, right] = nodes[i];
-            if (left != -1)
-            {
-                tree_nodes[i]->left = tree_nodes[left];
-                has_parents[left] = true;
-            }
-            if (right != -1)
-            {
-                tree_nodes[i]->right = tree_nodes[right];
-                has_parents[right] = true;
-            }
-            if (left == -1 && right == -1)
-                ++cnt_leafs;
-        }
-
-        root = tree_nodes[find(has_parents.begin(), has_parents.end(), false) - has_parents.begin()];
+    for (int i = 0; i < n; ++i) {
+      node[i] = new TreeNode(i);
     }
 
-    auto depth()
-    {
-        return height(root);
+    for (int i = 0; i < n; ++i) {
+      auto [left, right] = tree[i];
+      if (left == -1 && right == -1) {
+        ++leafs;
+      }
+
+      if (left != -1) {
+        node[i]->left = node[left];
+        has_parent[left] = true;
+      }
+
+      if (right != -1) {
+        node[i]->right = node[right];
+        has_parent[right] = true;
+      }
     }
 
-    auto leaf()
-    {
-        return cnt_leafs;
-    }
+    root = node[std::find(has_parent.begin(), has_parent.end(), false) -
+                has_parent.begin()];
+  }
+
+  auto get_leaf() -> int { return leafs; }
+
+  auto get_height() -> int { return _get_height(root); }
 };
 
-int main()
-{
-    cin.tie(nullptr)->sync_with_stdio(false);
+auto main() -> int {
+  std::cin.tie(nullptr)->sync_with_stdio(false);
 
-    int n;
-    cin >> n;
-    vector<pair<int, int>> nodes(n);
-    for (auto &n : nodes)
-        cin >> n.first >> n.second;
-
-    Solution sol;
-    sol.build_tree(nodes);
-    cout << sol.depth() << ' ' << sol.leaf() << '\n';
-    return 0;
+  int n = 0;
+  std::cin >> n;
+  std::vector<std::pair<int, int>> tree(n);
+  for (auto &[left, right] : tree) {
+    std::cin >> left >> right;
+  }
+  TreeUtils sol(n, tree);
+  std::cout << sol.get_height() << ' ' << sol.get_leaf() << '\n';
 }

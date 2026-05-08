@@ -2,35 +2,48 @@
 #include <iostream>
 #include <vector>
 
-template <typename Tp> class Fenwick {
-private:
-  int n;
-  std::vector<Tp> tree;
+class SegTree {
+  int n = 0;
+  std::vector<int> tree{};
 
 public:
-  explicit Fenwick(int n) : n(n), tree(n + 1, -1) {}
+  explicit SegTree(int size) {
+    int base = 1;
+    while (base < size) {
+      base <<= 1;
+    }
+    n = base;
+    tree.assign(base << 1, 0);
+  }
 
-  auto update(int i, Tp layer) -> void;
+  auto update(int i, int value) -> void {
+    i += n;
+    tree[i] = value;
 
-  [[nodiscard]] auto getMax(int i) const -> Tp;
+    while (i > 1) {
+      tree[i >> 1] = std::max(tree[i], tree[i ^ 1]);
+      i >>= 1;
+    }
+  }
+
+  auto query(int l, int r) -> int {
+    l += n;
+    r += n;
+    int res = 0;
+
+    while (l < r) {
+      if (l & 1) {
+        res = std::max(res, tree[l++]);
+      }
+      if (r & 1) {
+        res = std::max(res, tree[--r]);
+      }
+      l >>= 1;
+      r >>= 1;
+    }
+    return res;
+  }
 };
-
-template <typename Tp> auto Fenwick<Tp>::update(int i, Tp layer) -> void {
-  while (i <= n) {
-    tree[i] = std::max(tree[i], layer);
-    i += (i & -i);
-  }
-}
-
-template <typename Tp>
-[[nodiscard]] auto Fenwick<Tp>::getMax(int i) const -> Tp {
-  Tp res = -1;
-  while (i > 0) {
-    res = std::max(res, tree[i]);
-    i &= i - 1;
-  }
-  return res;
-}
 
 auto main() -> int {
   std::cin.tie(nullptr)->sync_with_stdio(false);
@@ -38,39 +51,40 @@ auto main() -> int {
   int N, D;
   std::cin >> N >> D;
 
-  std::vector<int> v(N), val(N);
-  for (int i = 0; i < N; ++i) {
-    std::cin >> v[i];
-    val[i] = v[i];
+  std::vector<int> data(N, 0);
+  for (auto &d : data) {
+    std::cin >> d;
   }
 
-  std::ranges::sort(v);
-  auto [first, last] = std::ranges::unique(v);
-  v.erase(first, last);
-  int l = (int)v.size();
+  auto index = data;
+  std::sort(index.begin(), index.end());
+  index.erase(std::unique(index.begin(), index.end()), index.end());
+
+  SegTree seg(index.size());
 
   std::vector<std::vector<int>> res(N + 1);
+  for (int d : data) {
+    int idx = std::lower_bound(index.begin(), index.end(), d) - index.begin();
+    int left =
+        std::lower_bound(index.begin(), index.end(), d - D) - index.begin();
+    int right =
+        std::upper_bound(index.begin(), index.end(), d + D) - index.begin();
 
-  Fenwick<int> bit_l(l), bit_r(l);
+    int layer =
+        std::max(seg.query(0, left), seg.query(right, index.size())) + 1;
 
-  for (const int x : val) {
-    int index = std::ranges::lower_bound(v, x) - v.begin() + 1;
-    int left = std::ranges::upper_bound(v, x - D - 1) - v.begin();
-    int right = l - (std::ranges::lower_bound(v, x + D + 1) - v.begin());
-
-    int layer = 1 + std::max(bit_l.getMax(left), bit_r.getMax(right));
-
-    bit_l.update(index, layer);
-    bit_r.update(l + 1 - index, layer);
-
-    res[layer].push_back(x);
+    res[layer].emplace_back(d);
+    seg.update(idx, layer);
   }
 
-  for (auto &r : res) {
-    if (r.empty())
+  for (auto r : res) {
+    if (r.empty()) {
       continue;
-    std::ranges::sort(r);
-    for (const int x : r)
-      std::cout << x << ' ';
+    }
+    std::sort(r.begin(), r.end());
+    for (int a : r) {
+      std::cout << a << ' ';
+    }
   }
+  std::cout << '\n';
 }
