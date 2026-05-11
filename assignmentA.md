@@ -689,3 +689,177 @@ auto main() -> int {
 ```
 
 <img src="https://raw.githubusercontent.com/bianwoyali-design/Img/main/Img/20260509195544265.png"/>
+
+### LC 19
+```cpp
+#include <iostream>
+#include <vector>
+
+struct ListNode {
+  int val;
+  ListNode *next;
+  ListNode() : val(0), next(nullptr) {}
+  ListNode(int x) : val(x), next(nullptr) {}
+  ListNode(int x, ListNode *next) : val(x), next(next) {}
+};
+
+class Solution {
+public:
+  auto removeNthFromEnd(ListNode *head, int n) -> ListNode * {
+    ListNode dummy(0, head);
+    auto left = &dummy;
+    auto right = &dummy;
+    while (n--) {
+      right = right->next;
+    }
+    while (right->next) {
+      left = left->next;
+      right = right->next;
+    }
+    auto next = left->next;
+    left->next = left->next->next;
+    delete next;
+    return dummy.next;
+  }
+};
+
+auto main() -> int {
+  std::cin.tie(nullptr)->sync_with_stdio(false);
+
+  Solution sol;
+  std::vector<int> data = {1, 2, 3, 4, 5};
+  ListNode dummy;
+  auto tail = &dummy;
+  for (int d : data) {
+    tail->next = new ListNode(d);
+    tail = tail->next;
+  }
+
+  auto head = dummy.next;
+  int n = 2;
+  auto out = sol.removeNthFromEnd(head, n);
+  while (out != nullptr) {
+    std::cout << out->val << ' ';
+    out = out->next;
+  }
+  std::cout << '\n';
+}
+
+```
+
+<img src="https://raw.githubusercontent.com/bianwoyali-design/Img/main/Img/20260511201408622.png"/>
+
+### LC 142
+```cpp
+#include <cstddef>
+#include <iostream>
+#include <vector>
+
+struct ListNode {
+  int val;
+  ListNode *next;
+  ListNode() : val(0), next(nullptr) {}
+  ListNode(int x) : val(x), next(nullptr) {}
+  ListNode(int x, ListNode *next) : val(x), next(next) {}
+};
+
+class Solution {
+public:
+  /* Floyd */
+  auto detectCycle(ListNode *head) -> ListNode * {
+    auto fast = head;
+    auto slow = head;
+    while (fast && fast->next) {
+      slow = slow->next;
+      fast = fast->next->next;
+      if (slow == fast) {
+        while (slow != head) {
+          slow = slow->next;
+          head = head->next;
+        }
+        return slow;
+      }
+    }
+    return nullptr;
+  }
+};
+
+auto main() -> int {
+  std::cin.tie(nullptr)->sync_with_stdio(false);
+
+  Solution sol;
+  std::vector<int> data = {3, 2, 0, -4};
+  int pos = 1;
+  ListNode dummy;
+  auto tail = &dummy;
+  ListNode *insert = nullptr;
+  for (int i = 0; i < data.size(); ++i) {
+    tail->next = new ListNode(data[i]);
+    tail = tail->next;
+    if (i == pos) {
+      insert = tail;
+    }
+  }
+  tail->next = insert;
+  auto head = dummy.next;
+  std::cout << sol.detectCycle(head)->val << '\n';
+}
+```
+
+<img src="https://raw.githubusercontent.com/bianwoyali-design/Img/main/Img/20260511203339282.png"/>
+
+### POJ 02815
+```cpp
+#include <array>
+#include <iostream>
+#include <vector>
+
+auto main() -> int {
+  std::cin.tie(nullptr)->sync_with_stdio(false);
+
+  int n = 0, m = 0;
+  std::cin >> n >> m;
+  std::vector matrix(n, std::vector<int>(m));
+  for (auto &&row : matrix) {
+    for (int &x : row) {
+      std::cin >> x;
+    }
+  }
+
+  const std::array<std::array<int, 2>, 4> dist = {
+      {{{0, -1}}, {{-1, 0}}, {{0, 1}}, {{1, 0}}}};
+  std::vector visited(n, std::vector<bool>(m, false));
+
+  auto dfs = [&](auto &&self, int x, int y) -> int {
+    if (x < 0 || x >= n || y < 0 || y >= m || visited[x][y]) {
+      return 0;
+    }
+
+    visited[x][y] = true;
+    int size = 1;
+
+    for (int i = 0; i < 4; ++i) {
+      if (!(matrix[x][y] & (1 << i))) {
+        size += self(self, x + dist[i][0], y + dist[i][1]);
+      }
+    }
+
+    return size;
+  };
+
+  int max_size = 0;
+  int counts = 0;
+  for (int i = 0; i < n; ++i) {
+    for (int j = 0; j < m; ++j) {
+      if (!visited[i][j]) {
+        max_size = std::max(max_size, dfs(dfs, i, j));
+        ++counts;
+      }
+    }
+  }
+
+  std::cout << counts << '\n' << max_size << '\n';
+}
+```
+
+<img src="https://raw.githubusercontent.com/bianwoyali-design/Img/main/Img/20260511211843675.png"/>
