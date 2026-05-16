@@ -523,6 +523,11 @@ auto main() -> int {
 
 <mark>如果发现作业题目相对简单，有否寻找额外的练习题目，如“数算2026spring每日选做”、LeetCode、Codeforces、洛谷等网站上的题目。</mark>
 
+### BYYXTAutoNext
+Agent实在是太好用了，10分钟就能做个js脚本，以前光看网页dom树都得看好久。
+https://github.com/bianwoyali-design/BYYXTAutoNext
+一个用于自动刷博雅云学堂网课的脚本，欢迎大家使用、fork、issue、pr。
+
 ### sy299
 ```cpp
 #include <cctype>
@@ -1341,3 +1346,120 @@ auto main() -> int {
 
 
 ![](https://raw.githubusercontent.com/bianwoyali-design/Img/main/Img/20260516171434998.png)
+
+### POJ 27205
+```cpp
+#include <iostream>
+#include <vector>
+
+auto main() -> int {
+  std::cin.tie(nullptr)->sync_with_stdio(false);
+
+  int m{}, n{};
+  std::cin >> m >> n;
+  std::vector matrix(m, std::vector<int>(n));
+  for (auto &&row : matrix) {
+    for (auto &x : row) {
+      std::cin >> x;
+    }
+  }
+
+  std::vector<int> height(n + 1, 0);
+  int res = 0;
+  for (auto &&row : matrix) {
+    std::vector<int> stack = {-1};
+
+    for (int i = 0; i < n; ++i) {
+      if (row[i] == 0) {
+        ++height[i];
+      } else {
+        height[i] = 0;
+      }
+    }
+
+    for (int i = 0; i <= n; ++i) {
+      while (stack.back() != -1 && height[stack.back()] > height[i]) {
+        int top = stack.back();
+        stack.pop_back();
+        res = std::max(res, height[top] * (i - stack.back() - 1));
+      }
+      stack.push_back(i);
+    }
+  }
+
+  std::cout << res << '\n';
+}
+```
+
+![](https://raw.githubusercontent.com/bianwoyali-design/Img/main/Img/20260516200253755.png)
+
+### LC 3474
+```cpp
+#include <iostream>
+#include <string>
+
+class Solution {
+public:
+  auto generateString(const std::string &str1, const std::string &str2)
+      -> std::string {
+    int n = str1.size(), m = str2.size();
+    std::string res(n + m - 1, '?');
+
+    for (int i = 0; i < n; ++i) {
+      if (str1[i] != 'T') {
+        continue;
+      }
+
+      for (int j = 0; j < m; ++j) {
+        char v = res[i + j];
+        if (v != '?' && v != str2[j]) {
+          return "";
+        }
+        res[i + j] = str2[j];
+      }
+    }
+
+    auto prev = res;
+    for (auto &c : res) {
+      if (c == '?') {
+        c = 'a';
+      }
+    }
+
+    for (int i = 0; i < n; ++i) {
+      if (str1[i] != 'F') {
+        continue;
+      }
+
+      if (std::string(res.begin() + i, res.begin() + i + m) != str2) {
+        continue;
+      }
+
+      bool flag = false;
+      for (int j = i + m - 1; j >= i; --j) {
+        if (prev[j] == '?') {
+          res[j] = 'b';
+          flag = true;
+          break;
+        }
+      }
+
+      if (!flag) {
+        return "";
+      }
+    }
+
+    return res;
+  }
+};
+
+auto main() -> int {
+  std::cin.tie(nullptr)->sync_with_stdio(false);
+
+  std::string str1 = "TFTF", str2 = "abc";
+  Solution sol;
+  std::cout << sol.generateString(str1, str2) << '\n';
+}
+```
+
+![](https://raw.githubusercontent.com/bianwoyali-design/Img/main/Img/20260516201950941.png)
