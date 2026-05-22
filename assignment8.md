@@ -873,19 +873,18 @@ private:
 
   auto _perc_down(size_t node, size_t start, size_t end) -> void {
     if (has_lazy[node]) {
-      const auto mid = start + ((end - start) >> 1);
       const auto left = node << 1;
       const auto right = node << 1 | 1;
 
-      lazy[left] = lazy[node];
+      lazy[left] += lazy[node];
       has_lazy[left] = true;
-      tree[left] = lazy[node] * (mid + 1 - start);
+      tree[left] += lazy[node];
 
-      lazy[right] = lazy[node];
+      lazy[right] += lazy[node];
       has_lazy[right] = true;
-      tree[right] = lazy[node] * (end - mid);
+      tree[right] += lazy[node];
 
-      lazy[node] = 0;
+      lazy[node] = default_val;
       has_lazy[node] = false;
     }
   }
@@ -907,9 +906,9 @@ private:
   auto _update_range(size_t node, size_t start, size_t end, size_t l, size_t r,
                      Type value) -> void {
     if (l <= start && end <= r) {
-      lazy[node] = value;
+      lazy[node] += value;
       has_lazy[node] = true;
-      tree[node] = (end - start + 1) * value;
+      tree[node] += value;
       return;
     }
 
@@ -941,14 +940,14 @@ private:
       return _query_range(node << 1 | 1, mid + 1, end, l, r);
     }
 
-    return func(_query_range(node << 1, start, end, l, r),
-                _query_range(node << 1 | 1, start, end, l, r));
+    return func(_query_range(node << 1, start, mid, l, r),
+                _query_range(node << 1 | 1, mid + 1, end, l, r));
   }
 
 public:
   explicit LazySegTree(const std::vector<Type> &data, Func func = Func{},
                        const Type &de = Type())
-      : n(data.size()), default_val(de) {
+      : n(data.size()), default_val(de), func(func) {
     tree.assign(4 * n, default_val);
     lazy.assign(4 * n, default_val);
     has_lazy.assign(4 * n, false);
@@ -966,21 +965,22 @@ public:
 ```
 
 ```cpp
-template <typename Type, typename Func> class ZWKLazySegmentTree {
+template <typename Type, typename Func> class SegTree {
 private:
   size_t size;
   size_t base;
   size_t height;
-  Type default_val;
+  Type query_default;
+  Type lazy_default;
   Func func;
   std::vector<Type> tree;
   std::vector<Type> lazy;
   std::vector<bool> has_lazy;
 
-  auto _apply(size_t p, const Type &value, size_t len) -> void {
-    tree[p] = value * static_cast<Type>(len);
+  auto _apply(size_t p, const Type &value) -> void {
+    tree[p] += value;
     if (p < base) {
-      lazy[p] = value;
+      lazy[p] += value;
       has_lazy[p] = true;
     }
   }
@@ -992,28 +992,28 @@ private:
         continue;
       }
 
-      const size_t len = static_cast<size_t>(1) << (s - 1);
-      _apply(i << 1, lazy[i], len);
-      _apply(i << 1 | 1, lazy[i], len);
+      _apply(i << 1, lazy[i]);
+      _apply(i << 1 | 1, lazy[i]);
+      lazy[i] = lazy_default;
       has_lazy[i] = false;
     }
   }
 
   auto _pull(size_t p) -> void {
-    size_t len = 2;
-    for (p >>= 1; p > 0; p >>= 1, len <<= 1) {
+    for (p >>= 1; p > 0; p >>= 1) {
+      tree[p] = func(tree[p << 1], tree[p << 1 | 1]);
       if (has_lazy[p]) {
-        tree[p] = lazy[p] * static_cast<Type>(len);
-      } else {
-        tree[p] = func(tree[p << 1], tree[p << 1 | 1]);
+        tree[p] += lazy[p];
       }
     }
   }
 
 public:
-  explicit ZWKLazySegmentTree(const std::vector<Type> &data,
-                                  Func f = Func{}, const Type &de = Type())
-      : size(data.size()), default_val(de), func(f) {
+  explicit SegTree(const std::vector<Type> &data, Func f = Func{},
+                   const Type &query_de = Type(),
+                   const Type &lazy_de = Type())
+      : size(data.size()), query_default(query_de), lazy_default(lazy_de),
+        func(f) {
     base = 1;
     height = 0;
     while (base < size) {
@@ -1021,8 +1021,8 @@ public:
       ++height;
     }
 
-    tree.assign(base << 1, default_val);
-    lazy.assign(base << 1, default_val);
+    tree.assign(base << 1, query_default);
+    lazy.assign(base << 1, lazy_default);
     has_lazy.assign(base << 1, false);
 
     for (size_t i = 0; i < size; ++i) {
@@ -1033,7 +1033,7 @@ public:
     }
   }
 
-  auto update_range(size_t l, size_t r, const Type &value) -> void {
+  auto add_range(size_t l, size_t r, const Type &value) -> void {
     if (size == 0 || l > r || r >= size) {
       return;
     }
@@ -1046,17 +1046,15 @@ public:
     _push(left_origin);
     _push(right_origin - 1);
 
-    size_t len = 1;
     while (left < right) {
       if (left & 1) {
-        _apply(left++, value, len);
+        _apply(left++, value);
       }
       if (right & 1) {
-        _apply(--right, value, len);
+        _apply(--right, value);
       }
       left >>= 1;
       right >>= 1;
-      len <<= 1;
     }
 
     _pull(left_origin);
@@ -1065,7 +1063,7 @@ public:
 
   auto query_range(size_t l, size_t r) -> Type {
     if (size == 0 || l > r || r >= size) {
-      return default_val;
+      return query_default;
     }
 
     size_t left = l + base;
@@ -1073,14 +1071,14 @@ public:
     _push(left);
     _push(right - 1);
 
-    Type left_res = default_val;
-    Type right_res = default_val;
+    auto left_res = query_default;
+    auto right_res = query_default;
     while (left < right) {
       if (left & 1) {
         left_res = func(left_res, tree[left++]);
       }
       if (right & 1) {
-        right_res = func(tree[--right], right_res);
+        right_res = func(right_res, tree[--right]);
       }
       left >>= 1;
       right >>= 1;
@@ -1089,6 +1087,7 @@ public:
     return func(left_res, right_res);
   }
 };
+
 ```
 
 
