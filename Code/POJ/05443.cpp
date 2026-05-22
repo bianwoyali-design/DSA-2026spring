@@ -1,6 +1,7 @@
 #include <algorithm>
 #include <climits>
 #include <iostream>
+#include <string>
 #include <vector>
 
 auto main() -> int {
@@ -13,8 +14,8 @@ auto main() -> int {
     std::cin >> loc;
   }
 
-  std::vector dist(n, std::vector<int>(n, INT_MAX / 2));
   std::vector next_node(n, std::vector<int>(n, -1));
+  std::vector dist(n, std::vector<int>(n, INT_MAX / 2));
   for (int i = 0; i < n; ++i) {
     dist[i][i] = 0;
   }
@@ -63,13 +64,13 @@ auto main() -> int {
     return result;
   };
 
-  int r{};
-  std::cin >> r;
-  for (int i = 0; i < r; ++i) {
+  int k{};
+  std::cin >> k;
+  for (int i = 0; i < k; ++i) {
     std::string a, b;
     std::cin >> a >> b;
-    int src = std::find(location.begin(), location.end(), a) - location.begin();
-    int dst = std::find(location.begin(), location.end(), b) - location.begin();
-    std::cout << print_path(src, dst) << '\n';
+    int u = std::find(location.begin(), location.end(), a) - location.begin();
+    int v = std::find(location.begin(), location.end(), b) - location.begin();
+    std::cout << print_path(u, v) << '\n';
   }
 }
