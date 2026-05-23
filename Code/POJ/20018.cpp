@@ -1,65 +1,52 @@
+#include <algorithm>
 #include <iostream>
 #include <vector>
-#include <algorithm>
-using namespace std;
 
-class Fenwick
-{
+class Fenwick {
 private:
-    int n;
-    vector<int> tree;
-
+  int n;
+  std::vector<int> tree;
 public:
-    Fenwick(int n) : n(n), tree(n + 1, 0) {}
-
-    void update(int i)
-    {
-        while (i <= n)
-        {
-            ++tree[i];
-            i += (i & -i);
-        }
+  explicit Fenwick(int n) : n(n), tree(n + 1, 0) {}
+  auto update(int i) -> void {
+    while (i <= n) {
+      tree[i] += 1;
+      i += (i & -i);
     }
-
-    long long query(int i)
-    {
-        long long s = 0;
-        while (i > 0)
-        {
-            s += tree[i];
-            i &= i - 1;
-        }
-        return s;
+  }
+  auto query(int i) -> long long {
+    long long sum = 0;
+    while (i > 0) {
+      sum += tree[i];
+      i &= i - 1;
     }
+    return sum;
+  }
 };
 
-int main()
-{
-    cin.tie(nullptr)->sync_with_stdio(false);
+auto main() -> int {
+  std::cin.tie(nullptr)->sync_with_stdio(false);
 
-    int N;
-    cin >> N;
-    vector<int> v(N), vals(N);
-    for (int i = 0; i < N; ++i)
-    {
-        int ipt;
-        cin >> ipt;
-        v[i] = ipt, vals[i] = ipt;
-    }
+  int n;
+  std::cin >> n;
 
-    sort(v.begin(), v.end());
-    v.erase(unique(v.begin(), v.end()), v.end());
+  std::vector<int> vals(n), rank(n);
+  for (auto &&v : vals) {
+    std::cin >> v;
+  }
+  rank = vals;
 
-    Fenwick BIT(N);
+  std::sort(rank.begin(), rank.end());
+  rank.erase(std::unique(rank.begin(), rank.end()), rank.end());
 
-    long long ans = 0;
-    for (const auto &x : vals)
-    {
-        int r = lower_bound(v.begin(), v.end(), x) - v.begin() + 1;
-        ans += BIT.query(r - 1);
-        BIT.update(r);
-    }
+  Fenwick bit(n);
 
-    cout << ans << '\n';
-    return 0;
+  long long ans = 0;
+  for (auto v : vals) {
+    int idx = std::upper_bound(rank.begin(), rank.end(), v) - rank.begin() + 1;
+    ans += bit.query(idx - 1);
+    bit.update(idx);
+  }
+
+  std::cout << ans << '\n';
 }
