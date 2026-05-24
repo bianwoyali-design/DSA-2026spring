@@ -70,15 +70,16 @@ public:
       return _get_degree(a) < _get_degree(b);
     });
 
-    for (int next : candidates) {
+    bool found = std::ranges::any_of(candidates, [&](int next) -> bool {
       visited[next] = true;
       if (check(next, count + 1)) {
         return true;
       }
       visited[next] = false;
-    }
+      return false;
+    });
 
-    return false;
+    return found;
   }
 };
 
