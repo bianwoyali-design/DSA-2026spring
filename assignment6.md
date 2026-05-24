@@ -1,4 +1,4 @@
-# DSA Assignment #6: 🌲（1/3）
+3# DSA Assignment #6: 🌲（1/3）
 
 *Updated 2026-04-05 21:54 GMT+8*
  *Compiled by <mark>同学的姓名、院系</mark> (2026 Spring)*
