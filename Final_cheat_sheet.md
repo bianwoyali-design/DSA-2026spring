@@ -1,3 +1,8 @@
+---
+cssclasses:
+  - pdf-two-col
+---
+
 # Final Cheat Sheet
 ## 前缀和
 ### 二维前缀和
@@ -189,8 +194,7 @@ int lis = static_cast<int>(tails.size());
 
 ### 网格 DP
 ```cpp
-const long long NEG_INF = -4e18;
-std::vector dp(m, std::vector<long long>(n, NEG_INF));
+std::vector dp(m, std::vector<long long>(n, 0));
 dp[0][0] = grid[0][0];
 for (int i = 0; i < m; ++i) {
   for (int j = 0; j < n; ++j) {
@@ -965,7 +969,6 @@ public:
 };
 ```
 #### 扩展并查集
-下面以 0-index 的食物链三倍域为例。
 ```cpp
 DisjSet dsu(3 * n);
 auto self = [&](int x) { return x; };
