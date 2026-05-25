@@ -2,20 +2,27 @@
 ## 前缀和
 ### 二维前缀和
 ```cpp
-// 二维前缀和
-PrefixSum2D(const vector<vector<int>> &matrix) {
-  m = matrix.size();
-  n = matrix[0].size();
-  preSum.assign(m + 1, vector<int>(n + 1, 0));
-  for (int i = 1; i <= m; i++)
-    for (int j = 1; j <= n; j++)
-      preSum[i][j] = preSum[i - 1][j] + preSum[i][j - 1] -
-                     preSum[i - 1][j - 1] + matrix[i - 1][j - 1];
-}
-int query(int x1, int y1, int x2, int y2) { // 查询子矩阵和
-  return preSum[x2 + 1][y2 + 1] - preSum[x1][y2 + 1] - preSum[x2 + 1][y1] +
-         preSum[x1][y1];
-}
+class PrefixSum2D {
+private:
+  int m{}, n{};
+  std::vector<std::vector<long long>> pre_sum;
+
+public:
+  explicit PrefixSum2D(const std::vector<std::vector<int>> &matrix) {
+    m = static_cast<int>(matrix.size());
+    n = m == 0 ? 0 : static_cast<int>(matrix[0].size());
+    pre_sum.assign(m + 1, std::vector<long long>(n + 1, 0));
+    for (int i = 1; i <= m; ++i)
+      for (int j = 1; j <= n; ++j)
+        pre_sum[i][j] = pre_sum[i - 1][j] + pre_sum[i][j - 1] -
+                        pre_sum[i - 1][j - 1] + matrix[i - 1][j - 1];
+  }
+
+  auto query(int x1, int y1, int x2, int y2) -> long long {
+    return pre_sum[x2 + 1][y2 + 1] - pre_sum[x1][y2 + 1] -
+           pre_sum[x2 + 1][y1] + pre_sum[x1][y1];
+  }
+};
 ```
 ### 动态前缀和：BIT
 ```cpp
@@ -27,7 +34,7 @@ public:
   explicit Fenwick(int n) : n(n), tree(n + 1, 0) {}
   auto update(int i, int v) -> void {
     while (i <= n) {
-      tree[i] += v; // 可以覆盖或线性运算
+      tree[i] += v; // 单点增加 v
       i += (i & -i);
     }
   }
@@ -79,6 +86,53 @@ for (int i = n - 1; i >= 0; --i) {
 }
 ```
 
+## 位运算 / 状态压缩
+### 位运算速记
+```cpp
+bool has = (mask >> i) & 1;        // 第 i 位是否为 1
+mask |= 1 << i;                    // 把第 i 位设为 1
+mask &= ~(1 << i);                 // 把第 i 位清 0
+mask ^= 1 << i;                    // 翻转第 i 位
+int lowbit = x & -x;               // 最低位的 1
+int count = std::popcount(mask);   // C++20，1 的个数
+```
+枚举集合 `mask` 的非空子集：
+```cpp
+for (int sub = mask; sub; sub = (sub - 1) & mask) {
+  // sub 是 mask 的一个非空子集
+}
+```
+若要包含空集：
+```cpp
+for (int sub = mask;; sub = (sub - 1) & mask) {
+  // use sub
+  if (sub == 0)
+    break;
+}
+```
+
+### 状态压缩 DP
+适用：`n <= 20` 左右，状态用二进制集合表示。常见转移是“从小集合扩展到大集合”。
+
+```cpp
+const long long INF = 4e18;
+std::vector dp(1 << n, std::vector<long long>(n, INF));
+dp[1 << start][start] = 0;
+
+for (int mask = 0; mask < (1 << n); ++mask) {
+  for (int u = 0; u < n; ++u) {
+    if (((mask >> u) & 1) == 0 || dp[mask][u] == INF)
+      continue;
+    for (int v = 0; v < n; ++v) {
+      if ((mask >> v) & 1)
+        continue;
+      int next_mask = mask | (1 << v);
+      dp[next_mask][v] = std::min(dp[next_mask][v], dp[mask][u] + cost[u][v]);
+    }
+  }
+}
+```
+
 ## 排序 / 分治
 ### 归并排序 + 逆序对
 ```cpp
@@ -100,6 +154,52 @@ auto merge_sort = [&](auto &&self, int l, int r) -> long long {
   return inv;
 };
 long long inversions = merge_sort(merge_sort, 0, static_cast<int>(nums.size()));
+```
+## 动态规划
+### 背包
+0/1 背包：每个物品最多选一次，容量从大到小扫。
+```cpp
+std::vector<long long> dp(capacity + 1, 0);
+for (int i = 0; i < n; ++i)
+  for (int c = capacity; c >= weight[i]; --c)
+    dp[c] = std::max(dp[c], dp[c - weight[i]] + value[i]);
+```
+完全背包：每个物品可选多次，容量从小到大扫。
+```cpp
+std::vector<long long> dp(capacity + 1, 0);
+for (int i = 0; i < n; ++i)
+  for (int c = weight[i]; c <= capacity; ++c)
+    dp[c] = std::max(dp[c], dp[c - weight[i]] + value[i]);
+```
+
+### LIS
+`tails[len]` 表示长度为 `len + 1` 的上升子序列的最小结尾。
+```cpp
+std::vector<int> tails;
+for (int x : nums) {
+  auto it = std::lower_bound(tails.begin(), tails.end(), x);
+  if (it == tails.end())
+    tails.push_back(x);
+  else
+    *it = x;
+}
+int lis = static_cast<int>(tails.size());
+```
+严格上升用 `lower_bound`；非下降用 `upper_bound`。
+
+### 网格 DP
+```cpp
+const long long NEG_INF = -4e18;
+std::vector dp(m, std::vector<long long>(n, NEG_INF));
+dp[0][0] = grid[0][0];
+for (int i = 0; i < m; ++i) {
+  for (int j = 0; j < n; ++j) {
+    if (i > 0)
+      dp[i][j] = std::max(dp[i][j], dp[i - 1][j] + grid[i][j]);
+    if (j > 0)
+      dp[i][j] = std::max(dp[i][j], dp[i][j - 1] + grid[i][j]);
+  }
+}
 ```
 ## Manacher / 马拉车
 `d1[i]` 是以 `i` 为中心的奇回文半径，长度为 `2 * d1[i] - 1`；`d2[i]` 是以 `i - 1` 和 `i` 中间为中心的偶回文半径，长度为 `2 * d2[i]`。
@@ -145,8 +245,8 @@ auto compute_lps(const std::string &s) -> std::vector<int> {
     while (length > 0 && s[i] != s[length])
       length = lps[length - 1];
     if (s[i] == s[length])
-	  ++length;
-	lps[i] = length;
+      ++length;
+    lps[i] = length;
   }
   return lps;
 } // 计算pattern字符串的LPS(最长前缀后缀)表
@@ -224,6 +324,54 @@ for (int i = 0; i < s.size();) {
 while (!ops.empty()) apply();
 long long ans = nums.back();
 ```
+## 链表
+### 反转链表
+```cpp
+auto reverseList(ListNode *head) -> ListNode * {
+  ListNode *prev = nullptr;
+  while (head) {
+    auto next = head->next;
+    head->next = prev;
+    prev = head;
+    head = next;
+  }
+  return prev;
+}
+```
+
+### 快慢指针
+找中点：循环结束后 `slow` 在中点；偶数长度时在右中点。
+```cpp
+auto middleNode(ListNode *head) -> ListNode * {
+  auto slow = head;
+  auto fast = head;
+  while (fast && fast->next) {
+    slow = slow->next;
+    fast = fast->next->next;
+  }
+  return slow;
+}
+```
+判环并找入环点：
+```cpp
+auto detectCycle(ListNode *head) -> ListNode * {
+  auto slow = head;
+  auto fast = head;
+  while (fast && fast->next) {
+    slow = slow->next;
+    fast = fast->next->next;
+    if (slow == fast) {
+      auto ptr = head;
+      while (ptr != slow) {
+        ptr = ptr->next;
+        slow = slow->next;
+      }
+      return ptr;
+    }
+  }
+  return nullptr;
+}
+```
 ## Tree
 ### 树的读入和长子兄弟法
 ```cpp
@@ -231,30 +379,36 @@ struct TreeNode {
   char id;
   TreeNode *first_child{};
   TreeNode *next_sibling{};
-  TreeNode(char id) : id(id) {};
+  explicit TreeNode(char id) : id(id) {}
 };
-struct Node{ char id; int degree; };
-auto buildTree(const std::vector<Node> &node) -> TreeNode * {
+struct Node {
+  char id;
+  int degree;
+};
+auto buildTree(const std::vector<Node> &nodes) -> TreeNode * {
   if (nodes.empty())
     return nullptr;
-  auto root = new TreeNode(node[0].id);
-  if (!root)
-    return nullptr;
+
+  auto root = new TreeNode(nodes[0].id);
   std::queue<std::pair<TreeNode *, int>> q;
-  q.emplace(root, node[0].degree);
-  while (!q.empty()) {
+  q.emplace(root, nodes[0].degree);
+
+  size_t i = 1;
+  while (!q.empty() && i < nodes.size()) {
     auto [parent, degree] = q.front();
     q.pop();
+
     auto first_child = parent->first_child;
-    auto prev_child = first_child
-    while (degree-- && i < n) {
-      auto child = new TreeNode(node[i].id);
+    auto prev_child = first_child;
+    while (degree-- > 0 && i < nodes.size()) {
+      auto child = new TreeNode(nodes[i].id);
       if (!first_child)
         first_child = child;
       else
         prev_child->next_sibling = child;
+
       prev_child = child;
-      q.emplace(child, node[i].degree);
+      q.emplace(child, nodes[i].degree);
       ++i;
     }
     parent->first_child = first_child;
@@ -436,23 +590,30 @@ public:
 ### BST
 二叉搜索树依赖于这样一个性质：小于父节点的键都在左子树中，大于父节点的键则都在右子树中。我们称这个性质为二叉搜索性。
 ```cpp
+struct BSTNode {
+  char value;
+  BSTNode *left{};
+  BSTNode *right{};
+  explicit BSTNode(char value) : value(value) {}
+};
+
 class TreeUtils {
 private:
-  auto insertNode(TreeNode *root, char val) -> TreeNode * {
+  auto insertNode(BSTNode *root, char value) -> BSTNode * {
     if (!root)
-      return new TreeNode(val);
-    if (val < root->val)
-      root->left = insertNode(root->left, val);
+      return new BSTNode(value);
+    if (value < root->value)
+      root->left = insertNode(root->left, value);
     else
-      root->right = insertNode(root->right, val);
+      root->right = insertNode(root->right, value);
     return root;
   }
 public:
-  auto buildBST(const std::string &leaves) -> TreeNode * {
+  auto buildBST(const std::string &leaves) -> BSTNode * {
     if (leaves.empty())
       return nullptr;
-    TreeNode *root = nullptr;
-    for (int i = leaves.size() - 1; i >= 0; --i)
+    BSTNode *root = nullptr;
+    for (int i = static_cast<int>(leaves.size()) - 1; i >= 0; --i)
       root = insertNode(root, leaves[i]);
     return root;
   }
@@ -574,7 +735,7 @@ public:
   }
 
   auto preorder() -> std::vector<Type> {
-    std::vector<int> result;
+    std::vector<Type> result;
     if (root) {
       _preorder(root, result);
     }
@@ -595,7 +756,7 @@ private:
   TrieNode *root{};
 
   auto _erase_recursive(TrieNode *current, const std::string &word,
-                        const int index) -> bool {
+                        size_t index, bool &erased) -> bool {
     if (!current) {
       return false;
     }
@@ -605,7 +766,8 @@ private:
         return false;
       }
       --current->word_count;
-      return !current->child_mask;
+      erased = true;
+      return current->word_count == 0 && !current->child_mask;
     }
 
     const int char_idx = word[index] - 'a';
@@ -615,7 +777,8 @@ private:
       return false;
     }
 
-    if (_erase_recursive(node, word, index + 1)) {
+    if (_erase_recursive(node, word, index + 1, erased)) {
+      delete node;
       current->children[char_idx] = nullptr;
       current->child_mask &= ~(1 << char_idx);
       return current->word_count == 0 && !current->child_mask;
@@ -688,7 +851,9 @@ public:
   }
 
   auto erase(const std::string &word) -> bool {
-    return _erase_recursive(root, word, 0);
+    bool erased = false;
+    _erase_recursive(root, word, 0, erased);
+    return erased;
   }
 };
 ```
@@ -761,7 +926,7 @@ public:
 };
 ```
 ### 并查集
-#### 模版
+#### 模板
 ```cpp
 class DisjSet {
 private:
@@ -775,7 +940,9 @@ public:
     }
   }
 
-  auto find(int x) -> int { return parent[x] == x ? x : find(parent[x]); }
+  auto find(int x) -> int {
+    return parent[x] == x ? x : parent[x] = find(parent[x]);
+  }
 
   auto unite(int x, int y) -> bool {
     int root_x = find(x);
@@ -798,46 +965,40 @@ public:
 };
 ```
 #### 扩展并查集
+下面以 0-index 的食物链三倍域为例。
 ```cpp
-// oj 01182 食物链
-vector<int> pa, sz;
-void _init(int n) {//按题意修改
-    pa.resize(3 * n);
-    for (int i = 0; i < 3 * n; i++) pa[i] = i;
-    sz.assign(3 * n, 1);
+DisjSet dsu(3 * n);
+auto self = [&](int x) { return x; };
+auto eat = [&](int x) { return x + n; };
+auto eaten = [&](int x) { return x + 2 * n; };
+
+// x 与 y 同类
+if (dsu.find(eat(x)) == dsu.find(self(y)) ||
+    dsu.find(self(x)) == dsu.find(eat(y))) {
+  // 矛盾
+} else {
+  dsu.unite(self(x), self(y));
+  dsu.unite(eat(x), eat(y));
+  dsu.unite(eaten(x), eaten(y));
 }
-int _find(int i) {
-    return pa[i] == i ? pa[i] : pa[i] = _find(pa[i]);
-}
-void _union(int i, int j) {
-    int irep = _find(pa[i]), jrep = _find(pa[j]);
-    if (irep == jrep) return;
-    if (sz[irep] < sz[jrep]) pa[irep] = jrep, sz[jrep] += sz[irep];
-    else pa[jrep] = irep, sz[irep] += sz[jrep];
-}
-int main() {
-    int N, K; cin >> N >> K; _init(N); int ans = 0;
-    while (K--) {
-        int D, X, Y; cin >> D >> X >> Y;
-        if (X > N || Y > N) ans++, continue;
-        if (D == 1) {
-            if (_find(X + N - 1) == _find(Y - 1) || _find(X - 1) == _find(Y + N - 1)) ans++, continue;
-            _union(X - 1, Y - 1); _union(X + N - 1, Y + N - 1); _union(X + 2 * N - 1, Y + 2 * N - 1);
-        }
-        else {
-            if (_find(X - 1) == _find(Y - 1) || _find(Y + N - 1) == _find(X - 1)) ans++, continue;
-            _union(X + N - 1, Y - 1); _union(Y + 2 * N - 1, X - 1); _union(X + 2 * N - 1, Y + N - 1);
-        }
-    }
-    cout << ans << '\n'; return 0;
+
+// x 吃 y
+if (dsu.find(self(x)) == dsu.find(self(y)) ||
+    dsu.find(eaten(x)) == dsu.find(self(y))) {
+  // 矛盾
+} else {
+  dsu.unite(eat(x), self(y));
+  dsu.unite(self(x), eaten(y));
+  dsu.unite(eaten(x), eat(y));
 }
 ```
 扩展并查集应用：
 - 三倍域：`x`、`x + n`、`x + 2n` 分别表示不同关系类。常用于食物链：同类、捕食、被捕食。
 - 二倍域：`x` 和 `x + n` 表示相反关系。常用于敌友关系、二分图染色、奇偶约束。
 - 带权并查集：维护 `dist[x] = x 到 parent[x] 的关系值`，适合关系可以用模数表示的题。
+
 #### 带权并查集
-`dist[x]` 表示 `x` 到根的关系值，关系在 `mod` 下运算。若要加入约束 `relation(x, y) = w`，即 `x - y = w (mod mod)`。
+`dist[x]` 表示 `x` 到根的关系值，关系在 `mod` 下运算。若要加入约束 `x - y = w (mod mod)`：
 ```cpp
 class WeightedDSU {
 private:
@@ -858,16 +1019,13 @@ public:
     return parent[x];
   }
 
-  // 加入 x - y = w (mod mod)，返回是否和已有关系矛盾
   auto unite(int x, int y, int w) -> bool {
     int root_x = find(x), root_y = find(y);
     if (root_x == root_y)
-      return (dist[x] - dist[y] - w) % mod == 0;
+      return ((dist[x] - dist[y] - w) % mod + mod) % mod == 0;
 
     parent[root_x] = root_y;
-    dist[root_x] = (w + dist[y] - dist[x]) % mod;
-    if (dist[root_x] < 0)
-      dist[root_x] += mod;
+    dist[root_x] = ((w + dist[y] - dist[x]) % mod + mod) % mod;
     return true;
   }
 };
@@ -876,8 +1034,9 @@ public:
 - 奇偶/二分关系：`mod = 2`，同色 `w = 0`，异色 `w = 1`。
 - 食物链：`mod = 3`，同类 `w = 0`，`x` 吃 `y` 可设 `w = 1`，`x` 被 `y` 吃可设 `w = 2`。
 - 距离差约束：不用取模时，把 `% mod` 去掉，`dist` 用 `long long`。
+
 ### 线段树
-#### 模版
+#### 模板
 ```cpp
 class SegTree {
 private:
@@ -1203,13 +1362,14 @@ public:
 };
 
 ```
+
 ## Graph
 ### BFS 通配符桶优化
 适用：单词接龙 / 只改一个字符的最短路。把单词按通配符模式分桶，如 `fool` 放入 `_ool, f_ol, fo_l, foo_`，同桶单词两两只差一个字符。
 
 ```cpp
-int n = words.size();
-int len = words[0].size();
+int n = static_cast<int>(words.size());
+int len = static_cast<int>(words[0].size());
 std::unordered_map<std::string, std::vector<int>> bucket;
 
 for (int i = 0; i < n; ++i) {
@@ -1223,11 +1383,11 @@ for (int i = 0; i < n; ++i) {
 std::vector<int> dist(n, -1);
 std::queue<int> q;
 dist[start] = 0;
-q.push_back(start);
+q.push(start);
 
 while (!q.empty()) {
   int u = q.front();
-  q.pop_front();
+  q.pop();
 
   for (int p = 0; p < len; ++p) {
     std::string key = words[u];
@@ -1245,6 +1405,36 @@ while (!q.empty()) {
 ```
 
 复杂度：建桶 `O(n * len)` 个键；BFS 时每个桶最多展开一次，比暴力枚举两两比较 `O(n^2 * len)` 快很多。
+
+### 二分图染色 / 奇偶约束
+无向图二分图判定：相邻点颜色必须不同。若遇到同色边，说明不是二分图。
+```cpp
+std::vector<int> color(n, -1);
+bool ok = true;
+for (int s = 0; s < n && ok; ++s) {
+  if (color[s] != -1)
+    continue;
+
+  std::queue<int> q;
+  color[s] = 0;
+  q.push(s);
+
+  while (!q.empty() && ok) {
+    int u = q.front();
+    q.pop();
+    for (int v : adj[u]) {
+      if (color[v] == -1) {
+        color[v] = color[u] ^ 1;
+        q.push(v);
+      } else if (color[v] == color[u]) {
+        ok = false;
+        break;
+      }
+    }
+  }
+}
+```
+带奇偶关系的动态合并通常用带权并查集，维护 `dist[x]` 到根的奇偶值。
 
 ### DFS Warnsdorff 启发式
 适用：骑士巡游、网格 DFS、精确覆盖类搜索。原则是：下一步优先走“后续可走选择最少”的点，尽早发现死路。
@@ -1294,10 +1484,11 @@ auto dfs = [&](auto &&self, int x, int y, int step) -> bool {
 ```
 
 ### 拓扑排序
-#### Karn 算法
+#### Kahn 算法
 数据以邻接表储存，输出为拓扑序。
 ```cpp
-auto topo_sort_karn(int n, const std::vector<std::vector<int>> &adj) {
+auto topo_sort_kahn(int n, const std::vector<std::vector<int>> &adj)
+    -> std::vector<int> {
   std::vector<int> indegree(n, 0);
   for (int u = 0; u < n; ++u)
     for (auto v : adj[u])
@@ -1307,7 +1498,7 @@ auto topo_sort_karn(int n, const std::vector<std::vector<int>> &adj) {
     if (!indegree[i])
       q.emplace(i);
   std::vector<int> topo_order;
-  while (!q.empty) {
+  while (!q.empty()) {
     int u = q.front();
     q.pop();
     topo_order.emplace_back(u);
@@ -1323,27 +1514,29 @@ auto topo_sort_karn(int n, const std::vector<std::vector<int>> &adj) {
 #### DFS 拓扑排序
 原始输出为逆拓扑序，需要`reverse`。
 ```cpp
-auto dfs_topo_sort(const std::vector<std::vector<int>> adj) {
-  int n = adj.size();
+auto dfs_topo_sort(const std::vector<std::vector<int>> &adj) {
+  int n = static_cast<int>(adj.size());
   std::vector<int> visited(n, false);
   std::vector<int> finish_order;
   auto dfs_visit = [&](this auto &&self, int u) -> bool {
     visited[u] = 1;
     for (auto v : adj[u]) {
-      if (visited[v] == 0)
+      if (visited[v] == 0) {
         if (!self(v))
           return false;
-      else if (visited[v] == 1)
+      } else if (visited[v] == 1) {
         return false;
+      }
     }
     visited[u] = 2;
     finish_order.emplace_back(u);
     return true;
   };
   for (int u = 0; u < n; ++u) {
-    if (visited[u] == 0)
+    if (visited[u] == 0) {
       if (!dfs_visit(u))
-        // 有环
+        return {};
+    }
   }
   std::ranges::reverse(finish_order);
   return finish_order;
@@ -1363,9 +1556,10 @@ auto unite(int x, int y) -> bool {
     parent[root_x] = root_y;
   else if (rank[root_x] > rank[root_y])
     parent[root_y] = root_x;
-  else
+  else {
     parent[root_y] = root_x;
     ++rank[root_x];
+  }
   return true;
 }
 ```
@@ -1383,11 +1577,12 @@ auto has_cycle(int n, const std::vector<std::vector<int>> &adj) {
   auto dfs = [&](this auto &&self, int node, int parent) {
     visited[node] = true;
     for (auto v : adj[node]) {
-      if (!visited[v])
-	    if (self(v, node))
-	      return true; // 有环
-	  else if (v != parent)
-	    return true;
+      if (!visited[v]) {
+        if (self(v, node))
+          return true; // 有环
+      } else if (v != parent) {
+        return true;
+      }
     }
     return false;
   };
@@ -1503,13 +1698,39 @@ for (int u = 0; u < n; ++u) {
   comp_weight[comp[u]] += weight[u];
 }
 ```
+### 欧拉路径 Hierholzer
+适用：每条边恰好走一次。无向图要求奇度点为 `0` 或 `2` 个；有向图要求出入度差符合起终点条件，并且相关点连通。
+
+有向图模板，`adj[u]` 存边的终点，边会被弹出：
+```cpp
+std::vector<std::vector<int>> adj(n);
+std::vector<int> path;
+
+auto dfs = [&](this auto &&self, int u) -> void {
+  while (!adj[u].empty()) {
+    int v = adj[u].back();
+    adj[u].pop_back();
+    self(v);
+  }
+  path.push_back(u);
+};
+
+dfs(start);
+std::ranges::reverse(path); // path.size() == edge_count + 1 才用完所有边
+```
+字符串接龙 / Catenyms 类题常把单词看成边，首字母到尾字母建有向边；输出边时需要同时保存边编号或单词。
+
 ### 最短路问题
 #### Dijkstra （非负权单源最短路）
 ```cpp
-auto dijkstra(int n, std::vector<std::vector<std::pair<int, int>>> adj, int start) {
-  std::vector<int> dist(n, INT_MAX / 2);
+auto dijkstra(int n, const std::vector<std::vector<std::pair<int, int>>> &adj,
+              int start) {
+  const long long INF = 4e18;
+  std::vector<long long> dist(n, INF);
   dist[start] = 0;
-  std::priority_queue<std::pair<int, int>, std::vector<std::pair<int, int>>, std::greater<>> pq;
+  std::priority_queue<std::pair<long long, int>,
+                      std::vector<std::pair<long long, int>>,
+                      std::greater<>> pq;
   pq.emplace(0, start);
   while (!pq.empty()) {
     auto [d, u] = pq.top();
@@ -1913,6 +2134,31 @@ for (auto [u, v, w] : edges) {
 - 多条关键路径：所有 `earliest == latest` 的边组成的关键子图中可能有多条路径
 
 ## 常用技巧
+### 堆 / 优先队列
+默认是大根堆；小根堆用 `std::greater<>`。
+```cpp
+std::priority_queue<int> max_heap;
+std::priority_queue<int, std::vector<int>, std::greater<>> min_heap;
+```
+自定义排序：比较器返回 `true` 表示优先级更低，会排到后面。
+```cpp
+struct Node {
+  int value;
+  int id;
+};
+
+struct Compare {
+  auto operator()(const Node &a, const Node &b) const -> bool {
+    if (a.value != b.value)
+      return a.value > b.value; // 小 value 优先
+    return a.id > b.id;
+  }
+};
+
+std::priority_queue<Node, std::vector<Node>, Compare> pq;
+```
+Dijkstra / Prim 里常用懒删除：弹出时如果状态已经过期，直接 `continue`。
+
 ### 单调栈
 适用：找每个元素左/右第一个更大或更小的元素、柱状图最大矩形、字典序删除字符。
 
