@@ -1597,6 +1597,57 @@ auto has_cycle(int n, const std::vector<std::vector<int>> &adj) {
 ```
 #### 有向图判环
 见[拓扑排序](#拓扑排序).
+### 无向图 Tarjan
+Tarjan 可用于无向图求桥、割点、边双连通分量、点双连通分量。核心仍是 `dfn/low`，但判定条件和 SCC 不同。
+
+- 桥：`low[v] > dfn[u]`
+- 割点：非根节点满足 `low[v] >= dfn[u]`；根节点有至少两个 DFS 儿子
+- 有重边时必须用边编号跳过父边，不能只判断 `v == parent`
+
+```cpp
+struct Edge {
+  int to;
+  int id;
+};
+
+std::vector<std::vector<Edge>> adj(n);
+for (int id = 0; id < m; ++id) {
+  int u, v;
+  std::cin >> u >> v;
+  adj[u].push_back({v, id});
+  adj[v].push_back({u, id});
+}
+
+std::vector<int> dfn(n, -1), low(n), is_cut(n, false);
+std::vector<std::pair<int, int>> bridges;
+int timer = 0;
+
+auto dfs = [&](auto &&self, int u, int parent_edge) -> void {
+  dfn[u] = low[u] = timer++;
+  int child_count = 0;
+  for (auto [v, edge_id] : adj[u]) {
+    if (edge_id == parent_edge)
+      continue;
+    if (dfn[v] == -1) {
+      ++child_count;
+      self(self, v, edge_id);
+      low[u] = std::min(low[u], low[v]);
+      if (low[v] > dfn[u])
+        bridges.push_back({u, v});
+      if (parent_edge != -1 && low[v] >= dfn[u])
+        is_cut[u] = true;
+    } else {
+      low[u] = std::min(low[u], dfn[v]);
+    }
+  }
+  if (parent_edge == -1 && child_count >= 2)
+    is_cut[u] = true;
+};
+
+for (int u = 0; u < n; ++u)
+  if (dfn[u] == -1)
+    dfs(dfs, u, -1);
+```
 ### 强连通分量（SCC）
 #### Tarjan 算法
 ```cpp
