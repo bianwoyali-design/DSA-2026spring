@@ -1367,6 +1367,46 @@ public:
 ```
 
 ## Graph
+### 补图连通块
+适用：给出一批“禁止边/权值为 1 的边”，需要在补图中找连通块。维护未访问集合；从点 `u` 扩展时，所有未访问且不是 `u` 原图邻居的点，都是补图邻居。
+
+```cpp
+std::vector<std::unordered_set<int>> edge(n + 1);
+for (auto [u, v] : edges) {
+  edge[u].insert(v);
+  edge[v].insert(u);
+}
+
+std::set<int> unvisited;
+for (int i = 1; i <= n; ++i)
+  unvisited.insert(i);
+
+int component_count = 0;
+std::queue<int> q;
+while (!unvisited.empty()) {
+  ++component_count;
+  int start = *unvisited.begin();
+  unvisited.erase(start);
+  q.push(start);
+
+  while (!q.empty()) {
+    int u = q.front();
+    q.pop();
+    for (auto it = unvisited.begin(); it != unvisited.end();) {
+      int v = *it;
+      if (!edge[u].contains(v)) {
+        it = unvisited.erase(it);
+        q.push(v);
+      } else {
+        ++it;
+      }
+    }
+  }
+}
+```
+
+0/1 完全图 MST：输入边权为 `1`，未输入边权为 `0`。答案为 `补图连通块数 - 1`。
+
 ### BFS 通配符桶优化
 适用：单词接龙 / 只改一个字符的最短路。把单词按通配符模式分桶，如 `fool` 放入 `_ool, f_ol, fo_l, foo_`，同桶单词两两只差一个字符。
 
@@ -1799,6 +1839,56 @@ auto dijkstra(int n, const std::vector<std::vector<std::pair<int, int>>> &adj,
   return dist;
 }
 ```
+#### Dijkstra 变形差异
+只改状态、初值、转移和堆方向；其余框架沿用 Dijkstra。
+
+```cpp
+// 同余最短路：dist[r] 是能达到余数 r 的最小值
+int mod = static_cast<int>(*std::min_element(step.begin(), step.end()));
+std::vector<long long> dist(mod, INF);
+dist[0] = 0; // 若从 base 开始：dist[base % mod] = base
+for (long long w : step) {
+  int v = static_cast<int>((u + w) % mod);
+  relax_min(v, du + w);
+}
+bool ok = dist[target % mod] <= target;
+
+// 统计 [0, limit] 内可达数
+if (dist[r] <= limit)
+  ans += (limit - dist[r]) / mod + 1;
+```
+
+```cpp
+// 最小瓶颈路：最小化路径最大边权，海拔差/最小体力
+long long next = std::max(dist[u], w);
+if (next < dist[v])
+  relax_min(v, next);
+
+// 最大瓶颈路：最大化路径最小边权，货车限重/最大带宽
+dist[start] = INF;              // 其他点初值 -1
+long long next = std::min(dist[u], w);
+if (next > dist[v])
+  relax_max(v, next);           // 用大根堆
+```
+
+```cpp
+// 最大概率路：最大化边概率乘积
+prob[start] = 1;                // 其他点初值 0
+double next = prob[u] * p;
+if (next > prob[v])
+  relax_max(v, next);           // 用大根堆
+
+// 状态/分层图：最多用一次道具、剩余次数、钥匙状态等
+std::vector dist(n, std::array<long long, 2>{INF, INF});
+// 状态为 (du, u, used)
+if (!special)
+  relax_min({v, used}, du + w);
+else if (used == 0)
+  relax_min({v, 1}, du + w);
+```
+
+最小瓶颈路也可二分答案 + BFS，或 Kruskal 按边权从小到大加边；最大瓶颈路也可用最大生成树 + LCA 查询路径最小边。
+
 #### Bellman-Ford （有负权单源最短路）
 适用：有负权边、判断负环、差分约束、限制边数的最短路。复杂度 `O(nm)`。
 
