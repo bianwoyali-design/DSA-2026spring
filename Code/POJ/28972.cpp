@@ -1,57 +1,87 @@
+#include <algorithm>
 #include <array>
+#include <cstdlib>
 #include <iostream>
-#include <queue>
+#include <numeric>
 #include <tuple>
 #include <vector>
+
+class DisjSet {
+private:
+  std::vector<int> parent;
+  std::vector<int> rank;
+
+public:
+  explicit DisjSet(int n) : parent(n), rank(n, 0) {
+    std::iota(parent.begin(), parent.end(), 0);
+  }
+
+  auto find(int x) -> int {
+    return parent[x] == x ? x : parent[x] = find(parent[x]);
+  }
+
+  auto unite(int x, int y) -> bool {
+    int root_x = find(x);
+    int root_y = find(y);
+
+    if (root_x == root_y) {
+      return false;
+    }
+
+    if (rank[root_x] < rank[root_y]) {
+      parent[root_x] = root_y;
+    } else if (rank[root_x] > rank[root_y]) {
+      parent[root_y] = root_x;
+    } else {
+      parent[root_y] = root_x;
+      ++rank[root_x];
+    }
+    return true;
+  }
+};
 
 auto main() -> int {
   std::cin.tie(nullptr)->sync_with_stdio(false);
 
   int n, m;
   std::cin >> n >> m;
-  std::vector grid(n, std::vector<int>(m, 0));
+  std::vector grid(n, std::vector<int>(m));
   for (auto &row : grid) {
-    for (auto &x : row) {
+    for (int &x : row) {
       std::cin >> x;
     }
   }
 
-  constexpr static int INF = 1e9;
-  constexpr static std::array<std::array<int, 2>, 4> dir = {
-      {{{0, 1}}, {{1, 0}}, {{0, -1}}, {{-1, 0}}}};
-
-  std::vector dist(n, std::vector<int>(m, INF));
-  std::priority_queue<std::tuple<int, int, int>,
-                      std::vector<std::tuple<int, int, int>>, std::greater<>>
-      pq;
-  pq.emplace(0, 0, 0);
-  dist[0][0] = 0;
-
-  while (!pq.empty()) {
-    auto [d, x, y] = pq.top();
-    pq.pop();
-
-    if (x == n - 1 && y == m - 1) {
-      std::cout << d << '\n';
-      return 0;
-    }
-
-    if (d != dist[x][y]) {
-      continue;
-    }
-
-    for (int i = 0; i < 4; ++i) {
-      int nx = x + dir[i][0];
-      int ny = y + dir[i][1];
-
-      if (nx < 0 || nx >= n || ny < 0 || ny >= m) {
-        continue;
+  std::vector<std::tuple<int, int, int>> edges;
+  constexpr static std::array<std::array<int, 2>, 2> dir = {{{0, 1}, {1, 0}}};
+  for (int x = 0; x < n; ++x) {
+    for (int y = 0; y < m; ++y) {
+      int u = x * m + y;
+      for (const auto &[dx, dy] : dir) {
+        int nx = x + dx;
+        int ny = y + dy;
+        if (nx >= n || ny >= m) {
+          continue;
+        }
+        int v = nx * m + ny;
+        int w = std::abs(grid[nx][ny] - grid[x][y]);
+        edges.emplace_back(w, u, v);
       }
+    }
+  }
 
-      int nd = std::max(std::abs(grid[nx][ny] - grid[x][y]), d);
-      if (nd < dist[nx][ny]) {
-        dist[nx][ny] = nd;
-        pq.emplace(dist[nx][ny], nx, ny);
+  if (n == 1 && m == 1) {
+    std::cout << 0 << '\n';
+    return 0;
+  }
+
+  std::sort(edges.begin(), edges.end());
+  DisjSet dsu(n * m);
+  for (auto [w, u, v] : edges) {
+    if (dsu.unite(u, v)) {
+      if (dsu.find(0) == dsu.find(n * m - 1)) {
+        std::cout << w << '\n';
+        return 0;
       }
     }
   }
