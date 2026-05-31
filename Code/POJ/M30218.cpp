@@ -12,18 +12,23 @@ auto main() -> int {
     int v;
     std::cin >> v;
 
-    bool flag = true;
-    while (flag && v < 0 && !st.empty() && st.back() > 0) {
-      if (st.back() < -v)
-        v = st.back() + v, st.pop_back();
-      else if (st.back() == -v)
-        st.pop_back(), flag = false;
-      else
-        st.back() += v, flag = false;
+    if (v < 0) {
+      while (!st.empty() && v < 0 && st.back() > 0) {
+        v += st.back();
+        if (v < 0) {
+          st.pop_back();
+        } else if (v > 0) {
+          st.back() = v;
+        } else {
+          st.pop_back();
+        }
+      }
+      if (v < 0) {
+        st.emplace_back(v);
+      }
+    } else {
+      st.emplace_back(v);
     }
-
-    if (flag)
-      st.push_back(v);
   }
 
   std::cout << st.size() << '\n';
