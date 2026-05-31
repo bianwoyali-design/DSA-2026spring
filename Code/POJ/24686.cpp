@@ -69,12 +69,10 @@ public:
   explicit SegTree(int n) : n(n), tree(4 * n, 0), lazy(4 * n, 0) {}
 
   auto update_range(int l, int r, int value) -> void {
-    _update_range(1, 0, n - 1, l, r, value);
+    _update_range(1, 1, n, l, r, value);
   }
 
-  auto query_range(int l, int r) -> int {
-    return _query_range(1, 0, n - 1, l, r);
-  }
+  auto query_range(int l, int r) -> int { return _query_range(1, 1, n, l, r); }
 };
 
 auto main() -> int {
