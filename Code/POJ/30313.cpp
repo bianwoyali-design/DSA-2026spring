@@ -1,43 +1,39 @@
 #include <algorithm>
 #include <iostream>
-#include <list>
+#include <numeric>
 #include <queue>
+#include <set>
 #include <tuple>
+#include <unordered_set>
 #include <vector>
 
-class DSU {
+class DisjSet {
 private:
   std::vector<int> parent;
   std::vector<int> rank;
 
 public:
-  explicit DSU(int n) : parent(n), rank(n, 0) {
-    for (int i = 0; i < n; ++i) {
-      parent[i] = i;
-    }
+  explicit DisjSet(int n) : parent(n), rank(n, 0) {
+    std::iota(parent.begin(), parent.end(), 0);
   }
 
-  auto Find(int x) -> int {
-    if (parent[x] == x) {
-      return x;
-    }
-    return parent[x] = Find(parent[x]);
-  }
+  auto find(int x) -> int { return parent[x] == x ? x : find(parent[x]); }
 
-  auto Union(int x, int y) -> bool {
-    int root_x = Find(x);
-    int root_y = Find(y);
+  auto unite(int x, int y) -> bool {
+    int root_x = find(x);
+    int root_y = find(y);
+
     if (root_x == root_y) {
       return false;
     }
 
-    if (rank[root_x] < rank[root_y]) {
+    if (rank[root_y] > rank[root_x]) {
       parent[root_x] = root_y;
     } else if (rank[root_x] > rank[root_y]) {
       parent[root_y] = root_x;
     } else {
-      parent[root_x] = root_y;
-      ++rank[root_y];
+      parent[root_y] = root_x;
+      ++rank[root_x];
     }
     return true;
   }
@@ -48,76 +44,68 @@ auto main() -> int {
 
   int n, m;
   std::cin >> n >> m;
-  std::vector<std::tuple<int, int, int>> edge;
-  edge.reserve(m);
-  std::vector neighbor(n, std::vector<int>());
+
+  std::vector adj(n, std::unordered_set<int>());
+  std::vector<std::tuple<int, int, int>> edges;
+  std::vector<int> comp(n, -1);
+
   for (int i = 0; i < m; ++i) {
     int u, v, w;
     std::cin >> u >> v >> w;
     --u, --v;
-    edge.emplace_back(w, u, v);
-    neighbor[u].emplace_back(v);
-    neighbor[v].emplace_back(u);
+    edges.emplace_back(w, u, v);
+    adj[u].insert(v);
+    adj[v].insert(u);
   }
 
-  int comp_count = 0;
-  std::vector comp(n, -1);
-  std::list<int> unvisited;
+  std::set<int> unvisited;
   for (int i = 0; i < n; ++i) {
-    unvisited.emplace_back(i);
+    unvisited.insert(i);
   }
-  std::vector<int> marked(n, 0);
-  int stamp = 0;
 
+  int component_count = 0;
+  std::queue<int> q;
   while (!unvisited.empty()) {
-    int start = unvisited.front();
-    unvisited.pop_front();
-    comp[start] = comp_count;
-
-    std::queue<int> q;
+    int start = *unvisited.begin();
+    unvisited.erase(start);
     q.emplace(start);
+    comp[start] = component_count;
 
     while (!q.empty()) {
       int u = q.front();
       q.pop();
-
-      ++stamp;
-      for (int v : neighbor[u]) {
-        marked[v] = stamp;
-      }
-
       for (auto it = unvisited.begin(); it != unvisited.end();) {
         int v = *it;
-
-        if (marked[v] != stamp) {
-          comp[v] = comp_count;
-          q.emplace(v);
+        if (!adj[u].count(v)) {
           it = unvisited.erase(it);
+          comp[v] = component_count;
+          q.emplace(v);
         } else {
           ++it;
         }
       }
     }
 
-    ++comp_count;
+    ++component_count;
   }
 
-  std::sort(edge.begin(), edge.end());
-  long long mst_weight = 0;
+  DisjSet dsu(component_count);
+  std::sort(edges.begin(), edges.end());
+  int mst = 0;
   int count = 0;
-  DSU dsu(comp_count);
-  for (auto &&[w, u, v] : edge) {
-    if (count == comp_count - 1) {
-      break;
+  for (auto [w, u, v] : edges) {
+    int cu = comp[u], cv = comp[v];
+    if (cu == cv) {
+      continue;
     }
 
-    int cu = comp[u];
-    int cv = comp[v];
-    if (cu != cv && dsu.Union(cu, cv)) {
-      mst_weight += w;
-      ++count;
+    if (dsu.unite(cu, cv)) {
+      mst += w;
+      if (++count == n - 1) {
+        break;
+      }
     }
   }
 
-  std::cout << mst_weight << '\n';
+  std::cout << mst << '\n';
 }
