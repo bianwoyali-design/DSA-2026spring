@@ -1640,8 +1640,8 @@ auto has_cycle(int n, const std::vector<std::vector<int>> &adj) {
 ### 无向图 Tarjan
 Tarjan 可用于无向图求桥、割点、边双连通分量、点双连通分量。核心仍是 `dfn/low`，但判定条件和 SCC 不同。
 
-- 桥：`low[v] > dfn[u]`
-- 割点：非根节点满足 `low[v] >= dfn[u]`；根节点有至少两个 DFS 儿子
+- 桥：`low[v] > dfn[u]`，是边双连通分量分界线
+- 割点：非根节点满足 `low[v] >= dfn[u]`；根节点有至少两个 DFS 儿子，是点双连通分量分界线
 - 有重边时必须用边编号跳过父边，不能只判断 `v == parent`
 
 ```cpp
