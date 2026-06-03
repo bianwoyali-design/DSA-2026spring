@@ -160,6 +160,30 @@ auto merge_sort = [&](auto &&self, int l, int r) -> long long {
 };
 long long inversions = merge_sort(merge_sort, 0, static_cast<int>(nums.size()));
 ```
+
+### 贪心速记
+适用：局部选择不会破坏全局最优，常和排序、优先队列、交换论证搭配。
+
+常见套路：
+- 区间调度：按结束时间升序选，能选就选。
+- 覆盖问题：在当前位置可选范围内，选能延伸最远的方案。
+- 配对问题：排序后双指针，最小配最大或相邻配对。
+- 反悔贪心：先接受选择，若超限制就用堆删掉代价最大或收益最小的选择。
+
+```cpp
+std::sort(intervals.begin(), intervals.end(),
+          [](auto &a, auto &b) { return a.end < b.end; });
+
+int count = 0;
+int last_end = std::numeric_limits<int>::min();
+for (auto [start, end] : intervals) {
+  if (start >= last_end) {
+    ++count;
+    last_end = end;
+  }
+}
+```
+
 ## 动态规划
 ### 背包
 0/1 背包：每个物品最多选一次，容量从大到小扫。
@@ -205,6 +229,32 @@ for (int i = 0; i < m; ++i) {
   }
 }
 ```
+
+### 线性 DP / 滑动窗口 DP
+线性 DP 通常只依赖前面若干状态：
+
+```cpp
+std::vector<long long> dp(n, 0);
+dp[0] = base;
+for (int i = 1; i < n; ++i) {
+  dp[i] = std::max(dp[i - 1] + take[i], skip_value);
+}
+```
+
+若转移形如 `dp[i] = sum(dp[j]), i - k <= j < i`，用前缀和维护窗口和：
+
+```cpp
+std::vector<long long> dp(n + 1, 0), prefix(n + 1, 0);
+dp[0] = 1;
+prefix[1] = 1;
+
+for (int i = 1; i <= n; ++i) {
+  int left = std::max(0, i - k);
+  dp[i] = prefix[i] - prefix[left];
+  prefix[i + 1] = prefix[i] + dp[i];
+}
+```
+
 ## Manacher / 马拉车
 `d1[i]` 是以 `i` 为中心的奇回文半径，长度为 `2 * d1[i] - 1`；`d2[i]` 是以 `i - 1` 和 `i` 中间为中心的偶回文半径，长度为 `2 * d2[i]`。
 ```cpp
@@ -537,6 +587,81 @@ int ancestor = lca(u, v);
 int distance = depth[u] + depth[v] - 2 * depth[ancestor];
 ```
 
+### DFS 序 / 子树区间
+DFS 进入时间把树映射成数组，任意子树对应连续区间 `[tin[u], tout[u]]`。适用：子树加、子树和、统计子树内信息。
+
+```cpp
+std::vector<int> tin(n + 1), tout(n + 1);
+int timer = 0;
+
+auto dfs_order = [&](auto &&self, int u, int parent) -> void {
+  tin[u] = ++timer;
+  for (int v : tree[u]) {
+    if (v == parent)
+      continue;
+    self(self, v, u);
+  }
+  tout[u] = timer;
+};
+
+dfs_order(dfs_order, root, 0);
+// subtree(u) -> [tin[u], tout[u]]
+```
+
+映射关系：
+- `tin[u]`：树上点 `u` 对应 DFS 序数组位置。
+- `order[pos]`：DFS 序位置 `pos` 对应树上哪个点。
+- `flat[tin[u]] = weight[u]`：把树上点权映射到数组。
+
+```cpp
+std::vector<int> order(n + 1);
+std::vector<long long> flat(n + 1);
+
+auto dfs_flatten = [&](auto &&self, int u, int parent) -> void {
+  tin[u] = ++timer;
+  order[timer] = u;
+  flat[timer] = weight[u];
+
+  for (int v : tree[u]) {
+    if (v == parent)
+      continue;
+    self(self, v, u);
+  }
+
+  tout[u] = timer;
+};
+```
+
+常用转换：单点 `u` 修改 -> 修改 `tin[u]`；查询或修改 `u` 的整棵子树 -> 区间 `[tin[u], tout[u]]`。
+
+### 树上背包 DP
+`dp[u][j]` 表示在 `u` 子树中选 `j` 个点的最优值。合并儿子时容量倒序，避免同一个儿子被重复用。
+
+```cpp
+const long long INF = 4e18;
+std::vector dp(n + 1, std::vector<long long>(k + 1, -INF));
+std::vector<int> size(n + 1, 0);
+
+auto dfs_knapsack = [&](auto &&self, int u, int parent) -> void {
+  dp[u][0] = 0;
+  dp[u][1] = value[u];
+  size[u] = 1;
+
+  for (int v : tree[u]) {
+    if (v == parent)
+      continue;
+    self(self, v, u);
+
+    for (int i = std::min(size[u], k); i >= 0; --i) {
+      for (int j = 1; j <= size[v] && i + j <= k; ++j) {
+        dp[u][i + j] = std::max(dp[u][i + j], dp[u][i] + dp[v][j]);
+      }
+    }
+    size[u] += size[v];
+  }
+};
+```
+
 ### 卡特兰数
 Catalan数 $𝐶_𝑛$ 的递推关系有着天然的递归结构：规模为 $𝑛$ 的计数问题 $𝐶_𝑛$ ，可以通过枚举分界点，分拆为两个规模分别为 $𝑖$ 和 $(𝑛−1-𝑖)$ 的子问题。这一递推关系使得Catalan数广泛出现于各类具有类似递归结构的问题中。
 **路径计数问题**：有一个大小为 $n\times n$ 的方格图，左下角为 $(0,0)(0, 0)$，右上角为 $(𝑛,𝑛)(n, n)$ 。从左下角开始，每次都只能向右或者向上走一单位，不走到对角线 $y=x$ 上方（但可以触碰）的情况下，到达右上角的路径总数为 $C_n$ 。
@@ -620,130 +745,6 @@ public:
     for (int i = static_cast<int>(leaves.size()) - 1; i >= 0; --i)
       root = insertNode(root, leaves[i]);
     return root;
-  }
-};
-```
-### AVL
-```cpp
-template <typename Type> class AVL {
-private:
-  struct TreeNode {
-    Type value;
-    int height = 1;
-    TreeNode *left{};
-    TreeNode *right{};
-    TreeNode(const Type &value) : value(value) {}
-  };
-
-  TreeNode *root = nullptr;
-
-  auto _get_height(TreeNode *node) -> int {
-    if (!node) {
-      return 0;
-    }
-    return node->height;
-  }
-
-  auto _get_balance(TreeNode *node) -> int {
-    if (!node) {
-      return 0;
-    }
-    return _get_height(node->left) - _get_height(node->right);
-  }
-
-  auto _rotate_left(TreeNode *z) -> TreeNode * {
-    auto y = z->right;
-    auto T2 = y->left;
-    y->left = z;
-    z->right = T2;
-    z->height = 1 + std::max(_get_height(z->left), _get_height(z->right));
-    y->height = 1 + std::max(_get_height(y->left), _get_height(y->right));
-    return y;
-  }
-
-  auto _rotate_right(TreeNode *y) -> TreeNode * {
-    auto x = y->left;
-    auto T2 = x->right;
-    x->right = y;
-    y->left = T2;
-    y->height = 1 + std::max(_get_height(y->left), _get_height(y->right));
-    x->height = 1 + std::max(_get_height(x->left), _get_height(x->right));
-    return x;
-  }
-
-  auto _insert(const Type &value, TreeNode *node) -> TreeNode * {
-    if (!node) {
-      return new TreeNode(value);
-    }
-
-    if (value < node->value) {
-      node->left = _insert(value, node->left);
-    } else {
-      node->right = _insert(value, node->right);
-    }
-
-    node->height =
-        1 + std::max(_get_height(node->left), _get_height(node->right));
-
-    int balance = _get_balance(node);
-
-    if (balance > 1) {
-      if (value < node->left->value) {
-        return _rotate_right(node);
-      } else {
-        node->left = _rotate_left(node->left);
-        return _rotate_right(node);
-      }
-    }
-
-    if (balance < -1) {
-      if (value > node->right->value) {
-        return _rotate_left(node);
-      } else {
-        node->right = _rotate_right(node->right);
-        return _rotate_left(node);
-      }
-    }
-
-    return node;
-  }
-
-  auto _preorder(TreeNode *node, std::vector<Type> &result) -> void {
-    if (!node) {
-      return;
-    }
-    result.push_back(node->value);
-    _preorder(node->left, result);
-    _preorder(node->right, result);
-  }
-
-  auto _clean(TreeNode *node) -> void {
-    if (!node)
-      return;
-    _clean(node->left);
-    _clean(node->right);
-    delete node;
-  }
-
-public:
-  AVL() = default;
-
-  ~AVL() { _clean(root); }
-
-  auto insert(const Type &value) -> void {
-    if (!root) {
-      root = new TreeNode(value);
-    } else {
-      root = _insert(value, root);
-    }
-  }
-
-  auto preorder() -> std::vector<Type> {
-    std::vector<Type> result;
-    if (root) {
-      _preorder(root, result);
-    }
-    return result;
   }
 };
 ```
@@ -1792,6 +1793,36 @@ for (int u = 0; u < n; ++u) {
   comp_weight[comp[u]] += weight[u];
 }
 ```
+
+缩点 DAG DP：有边 `u -> v` 时，`u` 的答案可由 `v` 更新。先求拓扑序，再反向转移。
+
+```cpp
+std::queue<int> q;
+std::vector<int> topo;
+for (int i = 0; i < comp_count; ++i)
+  if (indegree[i] == 0)
+    q.push(i);
+
+while (!q.empty()) {
+  int u = q.front();
+  q.pop();
+  topo.push_back(u);
+  for (int v : dag[u])
+    if (--indegree[v] == 0)
+      q.push(v);
+}
+
+std::vector<int> dp(comp_count);
+for (int c = 0; c < comp_count; ++c)
+  dp[c] = comp_min_id[c]; // 或 comp_weight[c] 等 SCC 自身信息
+
+for (int i = static_cast<int>(topo.size()) - 1; i >= 0; --i) {
+  int u = topo[i];
+  for (int v : dag[u])
+    dp[u] = std::min(dp[u], dp[v]);
+}
+```
+
 ### 欧拉路径 Hierholzer
 适用：每条边恰好走一次。无向图要求奇度点为 `0` 或 `2` 个；有向图要求出入度差符合起终点条件，并且相关点连通。
 
@@ -2278,6 +2309,141 @@ for (auto [u, v, w] : edges) {
 - 多条关键路径：所有 `earliest == latest` 的边组成的关键子图中可能有多条路径
 
 ## 常用技巧
+### 哈希表 / set
+判重、计数、记录最早或最晚位置。`std::set` 有序，查找和插入 `O(log n)`；`std::unordered_set` 均摊 `O(1)`，但不能有序遍历。
+
+```cpp
+std::unordered_map<int, int> count;
+for (int x : a)
+  ++count[x];
+
+std::unordered_set<int> seen;
+for (int x : a) {
+  if (seen.contains(target - x)) {
+    // 找到一组和为 target 的数
+  }
+  seen.insert(x);
+}
+```
+
+值到下标列表，配合二分找最小合法下标：
+
+```cpp
+std::vector<std::vector<int>> pos(max_value + 1);
+for (int i = 0; i < n; ++i)
+  pos[a[i]].push_back(i);
+
+auto it = std::upper_bound(pos[value].begin(), pos[value].end(), i);
+if (it != pos[value].end()) {
+  int j = *it; // 最小的 j > i
+}
+```
+
+### 双指针 / 滑动窗口
+双指针适用：数组有序、窗口性质随左右端点单调变化、每个元素最多进出窗口一次。
+
+有序数组二数和：
+
+```cpp
+int l = 0, r = n - 1;
+while (l < r) {
+  int sum = a[l] + a[r];
+  if (sum < target)
+    ++l;
+  else if (sum > target)
+    --r;
+  else
+    break;
+}
+```
+
+滑动窗口：
+
+```cpp
+int l = 0;
+long long sum = 0;
+for (int r = 0; r < n; ++r) {
+  sum += a[r];
+  while (l <= r && !check_window(l, r, sum)) {
+    sum -= a[l];
+    ++l;
+  }
+  // [l, r] 是当前合法窗口
+}
+```
+
+### 队列 / deque
+普通 BFS 用 `queue`；需要两端进出、维护窗口或 0-1 BFS 时用 `deque`。
+
+```cpp
+std::queue<int> q;
+dist[start] = 0;
+q.push(start);
+
+while (!q.empty()) {
+  int u = q.front();
+  q.pop();
+  for (int v : g[u]) {
+    if (dist[v] != -1)
+      continue;
+    dist[v] = dist[u] + 1;
+    q.push(v);
+  }
+}
+```
+
+0-1 BFS：
+
+```cpp
+std::deque<int> q;
+dist[start] = 0;
+q.push_front(start);
+
+while (!q.empty()) {
+  int u = q.front();
+  q.pop_front();
+  for (auto [v, w] : g[u]) {
+    if (dist[u] + w < dist[v]) {
+      dist[v] = dist[u] + w;
+      if (w == 0)
+        q.push_front(v);
+      else
+        q.push_back(v);
+    }
+  }
+}
+```
+
+### 撤销栈 / 状态历史
+适用：编辑器撤销、版本回退、搜索中恢复状态。把每次修改前的旧值压栈，撤销时反向恢复。
+
+```cpp
+struct Change {
+  int index;
+  int old_value;
+};
+
+std::vector<int> a(n);
+std::vector<Change> history;
+
+auto assign_value = [&](int index, int value) {
+  history.push_back({index, a[index]});
+  a[index] = value;
+};
+
+auto snapshot = [&]() {
+  return static_cast<int>(history.size());
+};
+
+auto rollback = [&](int checkpoint) {
+  while (static_cast<int>(history.size()) > checkpoint) {
+    auto [index, old_value] = history.back();
+    history.pop_back();
+    a[index] = old_value;
+  }
+};
+```
+
 ### 堆 / 优先队列
 默认是大根堆；小根堆用 `std::greater<>`。
 ```cpp
@@ -2419,3 +2585,111 @@ while (l < r) {
 ```
 
 应用：最大化最小间距、最大化最小分数、选点/放置类问题。
+
+### 约数分解 / 最小质因数
+质数筛法：
+
+埃氏筛，简单好写，复杂度 `O(n log log n)`。
+
+```cpp
+std::vector<bool> is_prime(limit + 1, true);
+is_prime[0] = is_prime[1] = false;
+
+for (int i = 2; i * i <= limit; ++i) {
+  if (!is_prime[i])
+    continue;
+  for (long long j = 1LL * i * i; j <= limit; j += i)
+    is_prime[j] = false;
+}
+
+std::vector<int> primes;
+for (int i = 2; i <= limit; ++i)
+  if (is_prime[i])
+    primes.push_back(i);
+```
+
+线性筛，每个合数只被最小质因数筛一次，复杂度 `O(n)`。
+
+```cpp
+std::vector<int> primes;
+std::vector<bool> is_composite(limit + 1, false);
+
+for (int i = 2; i <= limit; ++i) {
+  if (!is_composite[i])
+    primes.push_back(i);
+  for (int p : primes) {
+    if (1LL * i * p > limit)
+      break;
+    is_composite[i * p] = true;
+    if (i % p == 0)
+      break;
+  }
+}
+```
+
+多次分解整数时先筛 `spf[x]`，`spf[x]` 表示 `x` 的最小质因数。复杂度 `O(M log log M)` 预处理，单次分解约 `O(质因数个数)`。
+
+```cpp
+std::vector<int> spf(limit + 1, 0);
+for (int i = 2; i <= limit; ++i) {
+  if (spf[i] != 0)
+    continue;
+  for (long long j = i; j <= limit; j += i)
+    if (spf[j] == 0)
+      spf[j] = i;
+}
+
+auto factorize = [&](int x) {
+  std::vector<std::pair<int, int>> factors;
+  while (x > 1) {
+    int p = spf[x], cnt = 0;
+    while (x % p == 0) {
+      x /= p;
+      ++cnt;
+    }
+    factors.push_back({p, cnt});
+  }
+  return factors;
+};
+```
+
+生成所有约数：
+
+```cpp
+std::vector<int> divisors{1};
+for (auto [p, cnt] : factors) {
+  int size = static_cast<int>(divisors.size());
+  int power = 1;
+  for (int e = 1; e <= cnt; ++e) {
+    power *= p;
+    for (int i = 0; i < size; ++i)
+      divisors.push_back(divisors[i] * power);
+  }
+}
+```
+
+若图的转移和质因数/约数有关，先预处理每个数的因子表，再 BFS，避免每次现场分解。
+
+### 剪枝搜索
+适用：组合枚举、分组、因子拆分。核心是先排序，再用上下界、重复跳过、不可行提前返回。
+
+```cpp
+std::sort(a.rbegin(), a.rend()); // 大元素优先，剪枝更强
+
+auto dfs = [&](auto &&self, int index, int current) -> void {
+  if (current >= best)
+    return; // 最优性剪枝
+  if (index == n) {
+    best = std::min(best, current);
+    return;
+  }
+
+  for (int choice = 0; choice < limit; ++choice) {
+    if (!can_place(index, choice))
+      continue; // 可行性剪枝
+    place(index, choice);
+    self(self, index + 1, current + cost(index, choice));
+    undo(index, choice);
+  }
+};
+```
