@@ -590,7 +590,7 @@ auto main() -> int {
 
 <mark>（至少包含有"Accepted"）</mark>
 
-![[Pasted image 20260603224519.png]]
+
 
 ### U30919:猫猫去旅行 
 
