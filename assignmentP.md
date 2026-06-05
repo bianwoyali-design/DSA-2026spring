@@ -2,6 +2,12 @@
 
 CLab v2 就是为了解决 Clab 的一些问题而立项的。Clab v2 把计算、存储、网络、GPU 和运维能力重新组织成更接近真实云平台的科研基础设施。它面向的不是单次演示，而是更长期、更稳定、更可复现的教学与科研使用。很多能力目前仍在 PoC 或调试阶段，但方向已经很清楚：让物理服务器上的 CPU、内存、GPU、网卡和存储，变成可调度、可隔离、可运维的云资源。
 
+## 前端更新
+
+现代化的前端，接入AI助手。
+
+![](https://raw.githubusercontent.com/bianwoyali-design/Img/main/Img/20260605174058577.png)
+
 ## 计算：从云主机到统一资源管理
 
 v2 的 Compute 方向负责虚拟机、CPU/GPU 虚拟化、裸机虚拟化和高性能网络能力。短期仍保留 OpenStack 作为兼容路线，因为它已有 Nova、libvirt、Glance、Cinder 等部署和调试经验；但长期主线会转向 Kubernetes / KubeVirt。
@@ -315,6 +321,7 @@ uv run python main.py
 #### exa
 
 替代ls。
+
 #### fd
 
 命令行搜索工具，Rust编写，很快。
@@ -517,10 +524,10 @@ exit
 
 **Edge：** 
 
-In an already logged-in browser (Firefox for example):
+In an already logged-in browser:
 
 1. Open "Developer Tools" (usually by pressing <kbd>F12</kbd>) and switch to the "Network" tab;
-   Then, navigate to the Overleaf main page (e.g., `https://www.overleaf.com`) in the address bar.
+   Then, navigate to the Overleaf main page (e.g., `https://latex.pku.edu.cn`) in the address bar.
 
 2. Filter the listed items with `/project` and select the exact match.
 
@@ -528,4 +535,172 @@ In an already logged-in browser (Firefox for example):
 	>The format of the Cookie value would be like: `overleaf.sid=...`
 
 ![](https://raw.githubusercontent.com/bianwoyali-design/Img/main/Img/20260604182847160.png)
+
+## AI Agent 简介：以 Claude Code 为例
+
+### How Claude Code Works
+
+> Documentation Index: https://code.claude.com/docs/en/how-claude-code-works
+>
+> 使用 Claude Code 文档时，可以先读取 `overview` 作为索引，再根据索引继续打开具体页面。这样能避免只凭记忆查文档，也方便发现 skills、MCP、hooks、subagents、sessions 等相关页面。
+
+Claude Code 可以理解成运行在终端里的 agent framework。模型负责理解任务、拆解步骤和推理下一步；Claude Code 负责提供工具、上下文管理和执行环境，让模型能够真正读取文件、运行命令、编辑代码并验证结果。
+
+#### Agent Loop
+
+Claude Code 的核心工作方式是一个循环：
+
+1. **收集上下文**：读取文件、搜索代码、查看 git 状态、理解项目结构和用户要求。
+2. **采取行动**：编辑文件、创建文档、运行 shell 命令、调用 MCP 或其他外部工具。
+3. **验证结果**：运行测试、检查输出、读取错误信息，再决定是否继续修正。
+
+![](https://mintcdn.com/claude-code/c5r9_6tjPMzFdDDT/images/agentic-loop.svg?w=2500&fit=max&auto=format&n=c5r9_6tjPMzFdDDT&q=85&s=dfee4a0224b22047f2fecdaf8b3eba3e)
+
+这三个阶段不是严格分开的。比如修复一个测试失败时，Claude 可能会先运行测试，读取报错，搜索相关代码，修改实现，再运行测试验证。每一步工具调用都会把新信息反馈给模型，影响下一步决策。用户也可以随时中断、补充上下文或要求换方向。
+
+#### Models and Tools
+
+Claude Code 中的模型负责推理。Sonnet 适合大多数编码任务，Opus 更适合复杂架构判断；可以在会话中用 `/model` 切换，或启动时指定模型。
+
+工具让 Claude Code 从“只会回答”变成“能做事”。常见工具能力包括：
+
+- 文件操作：读取、编辑、创建、移动文件。
+- 搜索：按文件名、模式或正则搜索项目内容。
+- 执行：运行测试、构建、git、包管理器和系统命令。
+- 网络：查文档、搜索网页、读取外部资料。
+- 代码智能：查看类型错误、跳转定义、查找引用等。
+
+在这些基础工具之上，还可以继续扩展：用 skills 增加特定工作流知识，用 MCP 连接外部服务，用 hooks 自动化流程，用 subagents 把长任务拆给独立上下文处理。
+
+#### Claude 可以访问什么
+
+在某个目录运行 Claude Code 时，它通常可以访问：
+
+- 当前项目目录及其子目录中的文件。
+- 当前终端能运行的命令。
+- git 状态、分支、未提交更改和历史提交。
+- `CLAUDE.md` 中写入的项目规则和长期说明。
+- 自动记忆中的项目模式和用户偏好。
+- 已配置的 MCP servers、skills、subagents、Claude in Chrome 等扩展。
+
+这也是 Claude Code 和只看当前文件的代码补全工具不同的地方：它能跨文件理解项目，基于终端和工具完成端到端任务。
+
+#### 环境、会话和上下文
+
+Claude Code 可以在本地、云端或远程控制环境中运行；也可以通过终端、桌面应用、IDE 扩展、网页、Slack 或 CI/CD 管道使用。界面不同，但底层 agent loop 相同。
+
+会话会保存在本地，新的会话默认没有旧对话历史。要持久保存项目约定，应写入 `CLAUDE.md`，不要只依赖聊天上下文。长会话中上下文窗口会逐渐填满，Claude 会自动压缩旧工具输出和对话摘要；如果有必须长期保留的规则，应放进持久文件或 memory。
+
+管理上下文时，skills 和 subagents 很有用：skills 按需加载完整说明，subagents 拥有独立上下文，完成后只把摘要返回主会话，适合处理长任务或隔离探索过程。
+
+#### 安全机制
+
+Claude Code 主要依赖两类安全机制：
+
+- **检查点**：文件被编辑前会保存快照，出错时可以撤销。
+- **权限模式**：控制 Claude 是否能自动编辑文件或运行命令。
+
+常见权限模式包括默认模式、自动接受编辑、Plan Mode 和自动模式。对于有外部副作用的操作，比如数据库、部署、提交代码或删除文件，应优先让 Agent 说明计划，再批准执行。
+
+#### 使用建议
+
+更有效的使用方式是把 Claude Code 当成一个可以委派的工程同事：给清楚目标、约束、相关目录和验证方式，但不必逐条指定它读哪些文件。复杂任务可以先用 Plan Mode 让它探索和制定计划，再确认实现。实现类任务最好提供可验证标准，例如测试用例、预期输出或截图。过程中如果方向不对，可以直接中断并补充说明，而不是重新开始。
+
+### Quick Start
+
+[Claude Code Quick Start](https://code.claude.com/docs/en/quickstart)
+
+### 让 Claude Code 调用 DeepSeek API
+
+> API Documentaion:
+>  https://api-docs.deepseek.com/zh-cn/quick_start/agent_integrations/claude_code
+
+配置文件在`~/.claude/settings.json`，添加配置项：
+
+```json
+  "env": {
+    "ANTHROPIC_BASE_URL": "https://api.deepseek.com/anthropic",
+    "ANTHROPIC_AUTH_TOKEN": "<your-api-key>",
+    "ANTHROPIC_MODEL": "deepseek-v4-pro[1m]",
+    "ANTHROPIC_DEFAULT_OPUS_MODEL": "deepseek-v4-pro[1m]",
+    "ANTHROPIC_DEFAULT_SONNET_MODEL": "deepseek-v4-pro[1m]",
+    "ANTHROPIC_DEFAULT_HAIKU_MODEL": "deepseek-v4-flash",
+    "CLAUDE_CODE_SUBAGENT_MODEL": "deepseek-v4-flash",
+    "CLAUDE_CODE_EFFORT_LEVEL": "max"
+  }
+```
+
+### MCP：给 Agent 接外部工具
+
+MCP 是 Model Context Protocol 的缩写，可以理解为 Agent 的“外设接口”。没有 MCP 时，Agent 主要依赖自己能直接看到的文件和你粘贴给它的内容；接入 MCP 后，Agent 可以通过统一接口读取或操作外部系统，例如 Notion、Obsidian、GitHub、数据库、浏览器或课程文档库。
+
+MCP 的作用不是让模型“自动变聪明”，而是让它拿到更准确的上下文，并能使用更合适的工具。比如让 Agent 总结 CLab v2，如果没有 MCP，它只能依赖你手动复制的内容；如果接入了文档库 MCP，它就可以直接读取相关文档，再基于真实材料进行整理。
+
+一个 MCP server 通常会暴露若干工具，例如搜索页面、读取文档、创建页面、更新笔记。使用 MCP 时要注意权限：读文档、查资料通常风险较低；创建文档、修改数据库、提交代码这类写操作风险更高。比较好的使用方式是：让 Agent 先说明它要读取或修改什么，再允许真正的写操作。
+
+#### MCP 接入 Protocol：Codex + Obsidian/Outline
+
+**目标**：让 Agent 通过 MCP 读取或操作外部知识库，并把认证信息持久化。配置完成后，Agent 不再依赖手动复制材料，而是可以通过工具直接搜索、读取、创建或更新文档。
+
+**前置条件**：Obsidian/Outline 服务本身要能访问；`~/.codex/config.toml` 中的 MCP server 要启用；修改配置后需要重启 Codex，让当前线程重新加载工具。
+
+**1. 配置 Obsidian**
+
+Obsidian 使用 Local REST API with MCP 插件。它默认提供 HTTPS 端口 `27124`，但本地证书是自签名证书；如果没有把证书加入系统信任，Codex 在 MCP `initialize` 阶段可能握手失败。为了简化本机使用，可以启用插件的 insecure HTTP server，只监听 `127.0.0.1:27123`：
+
+```toml
+[mcp_servers.obsidian]
+enabled = true
+url = "http://127.0.0.1:27123/mcp/"
+
+[mcp_servers.obsidian.http_headers]
+Authorization = "Bearer <Obsidian API key>"
+```
+
+验证端点：
+
+```bash
+curl -i http://127.0.0.1:27123/mcp/
+```
+
+不带 token 时返回 `401 Authorization required` 是正常的，说明服务可达但请求未授权。真正接通的标准是：Codex 中出现 `mcp__obsidian`，并且 `vault_list`、`vault_read`、`tag_list` 这类只读工具能成功调用。
+
+如果坚持使用 HTTPS，则需要把 Obsidian 插件提供的 certificate 加入 macOS Keychain，并设为 Always Trust；否则 Codex 可能因为不信任证书而无法加载工具。
+
+**2. 配置 Outline**
+
+Outline 是远端 Streamable HTTP MCP，认证走 OAuth。为了避免每次调用都手动登录，把 MCP OAuth 凭据保存到系统 Keychain：
+
+```toml
+mcp_oauth_credentials_store = "keyring"
+
+[mcp_servers.outline-lcpu]
+url = "https://outline.lcpu.dev/mcp"
+scopes = ["read", "write"]
+oauth_resource = "https://outline.lcpu.dev/mcp"
+```
+
+注意：`mcp_oauth_credentials_store = "keyring"` 必须放在 `config.toml` 顶层，不能写进 `[mcp_servers.outline-lcpu]` 里面。
+
+配置后登录一次：
+
+```bash
+codex mcp login outline-lcpu --scopes read,write
+```
+
+完成浏览器授权并重启 Codex 后，正常情况下 Codex 会复用 refresh token。真正接通的标准是：Codex 中出现 `mcp__outline_lcpu`，并且 `list_collections`、`list_documents` 这类只读工具能成功调用。
+
+**3. 排障顺序**
+
+先看配置是否被识别：
+
+```bash
+codex mcp list
+codex mcp get obsidian
+codex mcp get outline-lcpu
+```
+
+再看服务是否可达：本地服务用 `curl` 检查端口，远端 OAuth 服务检查 `.well-known` metadata。最后看当前线程是否暴露对应的 `mcp__...` 工具，并优先用只读工具验证。
+
+需要区分两个状态：`enabled` 只说明配置启用；`mcp__...` 工具出现并能调用，才说明 MCP server 已经真正加载成功。
 
