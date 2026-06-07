@@ -54,13 +54,15 @@ v2 的 Storage 方向强调高性能共享存储和长期运维。当前 store /
 
 ## 对科研同学的意义
 
+[一个使用 CLab 构建的实例](https://github.com/bianwoyali-design/DryLab_Bonus_1)
+
 CLab v2 的新特性可以对应很多科研需求：物理中的蒙特卡洛模拟、有限元和流体计算；化学中的分子动力学、量子化学、分子 docking 和材料模拟；生物中的测序分析、蛋白结构预测、显微图像处理和模型训练；交叉学科中的大规模矩阵计算、优化、随机模拟和 AI 辅助科研。
 
 这些场景共同需要更强的计算能力、更可靠的数据管理、更清晰的资源分配和更好的复现条件。CLab v2 提供的不是最终答案，而是让想法变大的基础设施：让一个小程序有机会变成可复现的实验，让一次手动运行变成一组系统的参数扫描，让个人电脑上的结果进入团队可以共同使用的数据和环境。
 
 这也和数据结构与算法课有关。算法决定任务怎么计算，数据结构决定状态怎么保存，云平台决定这些计算能否被放大、复现和协作。对非计算机专业同学来说，理解 CLab v2 不需要成为云计算工程师；只需要知道，它正在把计算资源变成更像实验仪器一样可申请、可使用、可维护的科研工具。
 
-# 如何更好的使用 Clab
+# 如何更好的使用 CLab
 
 ## 了解 Linux 的基础知识
 
@@ -69,11 +71,11 @@ CLab v2 的新特性可以对应很多科研需求：物理中的蒙特卡洛模
 
 对于使用 Windows 的同学，习惯的软件下载方式可能是在网络上搜索并下载打包好的安装程序（通常为`.exe`或`.msi`），对于使用 macOS 的同学，可能是在 App Store 下载或者是在网络上搜索并下载`.dmg`镜像挂载后拖入 Application 文件夹。
 
-但是对于目前只能以 `ssh` 访问的 Clab 来说，我们想要安装软件只能通过终端进行，我们以 `Codex Cli` 为例：
+但是对于目前只能以 `ssh` 访问的 CLab 来说，我们想要安装软件只能通过终端进行，我们以 `Codex Cli` 为例：
 
-https://developers.openai.com/codex/quickstart?setup=cli
+> https://developers.openai.com/codex/quickstart?setup=cli
 
-要么通过 curl 抓取并执行下载脚本，要么从包管理器下载，都是下载的源码在本地编译后安装。
+要么通过 curl 抓取并执行下载脚本，要么从包管理器下载。
 
 **常用的包管理器**
 ![](https://raw.githubusercontent.com/bianwoyali-design/Img/main/Img/20260604150158543.png)
@@ -483,6 +485,21 @@ exit
 ```
 
 不建议刚开始就随便修改默认 shell。对于 Clab 这种远程机器，优先保证能正常登录、能正常跑任务；终端美化可以后面再做。
+
+### 在容器中运行 Linux
+
+>**Docker**
+>https://docs.docker.com/get-started/
+>**WSL Container**
+>https://learn.microsoft.com/zh-cn/windows/wsl/wsl-container
+>**Apple Container**
+>https://github.com/apple/container
+>
+>本节仅作了解，单纯是因为我前几天看到WSL更新原生容器化方案才放上来的。
+
+[WSL容器新功能详解｜本地运行Linux容器全流程演示 | Microsoft Developer](https://www.bilibili.com/video/BV1S47r62Edf?vd_source=d266a3b264122fee28f4b4b7397ae4d8)
+
+![](https://raw.githubusercontent.com/bianwoyali-design/Img/main/Img/20260607110228013.png)
 
 ## VS Code 和 Clab 协同
 
