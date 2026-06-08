@@ -323,15 +323,12 @@ uv run python main.py
 #### exa
 
 替代ls。
-
 #### fd
 
 命令行搜索工具，Rust编写，很快。
-
 #### ripgrep
 
 替代grep查找内容。
-
 #### fzf
 
 模糊搜索。
@@ -554,6 +551,8 @@ In an already logged-in browser:
 ![](https://raw.githubusercontent.com/bianwoyali-design/Img/main/Img/20260604182847160.png)
 
 ## AI Agent 简介：以 Claude Code 为例
+
+<mark>强烈建议在 Linux 或 macOS (darwin) 环境下使用 agent，Windows 对 posix 的支持近乎没有，使得 agent 更新往往落后一到两个大版本，同时沙箱环境适配很差，环境隔离几乎没有，很容易损坏本地文件系统。</mark>
 
 ### How Claude Code Works
 
