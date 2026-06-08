@@ -646,6 +646,7 @@ Claude Code 主要依赖两类安全机制：
   }
 ```
 
+或者用 [CC Switch](https://www.ccswitch.io/zh/docs?section=getting-started&item=introduction).
 ### MCP：给 Agent 接外部工具
 
 MCP 是 Model Context Protocol 的缩写，可以理解为 Agent 的“外设接口”。没有 MCP 时，Agent 主要依赖自己能直接看到的文件和你粘贴给它的内容；接入 MCP 后，Agent 可以通过统一接口读取或操作外部系统，例如 Notion、Obsidian、GitHub、数据库、浏览器或课程文档库。
