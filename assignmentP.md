@@ -498,6 +498,137 @@ exit
 
 ![](https://raw.githubusercontent.com/bianwoyali-design/Img/main/Img/20260607110228013.png)
 
+容器可以理解成一套隔离的 Linux 环境。它和虚拟机不完全一样：虚拟机更像完整的一台电脑，容器更像在当前系统上启动一个独立的运行环境。对于刚开始折腾开发环境的同学，容器最大的好处是“不容易把本机环境弄乱”。比如你想试用某个命令行工具、安装一堆依赖、跑一个不确定会不会污染环境的脚本，就可以先放进容器里。
+
+Claude Code 也可以放在容器中使用。这样做的意义不是让 Claude 变得更聪明，而是把它能看到、能修改的文件范围限制在容器里。尤其是在 Windows 上直接使用 agent 时，路径、权限、POSIX 命令和沙箱支持都容易出问题；用 Docker、WSL Container 或类似工具跑一个 Linux 容器，往往更接近真实服务器环境。
+
+如果只是临时试一下，可以用 `docker run --rm` 创建一次性容器；但更实用的方式是创建一个持久化的 Claude Code 容器。这个容器不删除，Claude Code 只安装一次，登录状态和配置也保留在容器里。以后想用时，只需要重新进入这个容器。
+
+先准备一个专门给容器使用的工作区。建议把希望 Claude Code 读取的项目都放在一个固定父目录下，例如：
+
+```bash
+mkdir -p "$HOME/claude-workspace"
+mkdir -p "$HOME/datasets"
+```
+
+然后创建一个长期保留的容器：
+
+```bash
+docker run -dit \
+  --name claude-code-dev \
+  -v "$HOME/claude-workspace:/workspace" \
+  -v "$HOME/datasets:/data:ro" \
+  -w /workspace \
+  node:22-bookworm sleep infinity
+```
+
+这几行的含义是：
+
+- `docker run`：创建并启动一个新容器。
+- `-dit`：让容器在后台保持运行，同时支持之后进入交互终端。
+- `--name claude-code-dev`：给容器起一个固定名字，之后可以用这个名字进入。
+- `-v "$HOME/claude-workspace:/workspace"`：把本机的 `~/claude-workspace` 挂载到容器里的 `/workspace`。
+- `-v "$HOME/datasets:/data:ro"`：把本机的 `~/datasets` 挂载到容器里的 `/data`，并设置为只读。
+- `-w /workspace`：把容器的工作目录设为 `/workspace`。
+- `node:22-bookworm`：使用带 Node.js 的 Debian Linux 镜像。
+- `sleep infinity`：让容器保持运行，不会立刻退出。
+
+第一次进入容器：
+
+```bash
+docker exec -it claude-code-dev bash
+```
+
+进入后安装 Claude Code：
+
+```bash
+npm install -g @anthropic-ai/claude-code
+claude
+```
+
+这一步只需要做一次。只要你不删除这个容器，容器内部安装的 Claude Code、登录状态、shell 配置和临时文件都会保留。
+
+以后想再次使用，不需要重新 `docker run`，只需要：
+
+```bash
+docker start claude-code-dev
+docker exec -it claude-code-dev bash
+claude
+```
+
+如果暂时不用，可以停止容器：
+
+```bash
+docker stop claude-code-dev
+```
+
+停止不会删除容器，下次 `docker start claude-code-dev` 后还能继续用。真正删除容器的是：
+
+```bash
+docker rm claude-code-dev
+```
+
+不要随便执行删除命令。容器删掉后，容器内部安装的 Claude Code 和登录状态也会一起消失。
+
+挂载目录是这里最关键的概念。容器默认看不到你的本机文件夹；只有通过 `-v` 挂载进去的目录，Claude Code 才能读取或修改。上面的例子里，容器内的 `/workspace` 对应本机的 `~/claude-workspace`。如果你把项目放到：
+
+```bash
+~/claude-workspace/my-project
+```
+
+那么进入容器后就可以：
+
+```bash
+cd /workspace/my-project
+claude
+```
+
+如果你在 Claude Code 中让它“读取当前项目”“修改这个脚本”，它实际操作的是容器里的 `/workspace/my-project`，而这个目录又对应本机的 `~/claude-workspace/my-project`。因此，容器中的修改会同步反映到本机文件夹。
+
+需要注意：Docker 不能给一个已经创建好的普通容器随时追加新的 `-v` 挂载。也就是说，如果你创建容器时只挂载了 `~/claude-workspace`，后来想让它访问另一个完全不在这个目录下的文件夹，通常要重新创建容器，或者一开始就挂载一个更合适的父目录。比较推荐的做法是固定一个 `~/claude-workspace`，把需要给 Claude Code 处理的项目都放进去。
+
+如果你确实经常要挂载不同目录，可以把 Claude Code 做进一个自定义镜像，再用 volume 保存 Claude 的配置。这样每次为不同目录创建新容器时，不需要重新下载 Claude Code，登录信息也可以复用。
+
+先新建一个 `Dockerfile`：
+
+```Dockerfile
+FROM node:22-bookworm
+RUN npm install -g @anthropic-ai/claude-code
+WORKDIR /workspace
+CMD ["sleep", "infinity"]
+```
+
+构建镜像：
+
+```bash
+docker build -t claude-code-dev:latest .
+```
+
+以后在任意项目目录下，可以创建一个挂载当前目录的容器：
+
+```bash
+docker run -dit \
+  --name claude-code-current \
+  -v "$PWD:/workspace" \
+  -v claude-code-home:/root/.claude \
+  -w /workspace \
+  claude-code-dev:latest
+```
+
+其中 `claude-code-home:/root/.claude` 是 Docker volume，用来保存 Claude Code 的登录信息和配置。换项目时可以删除旧容器、重新创建新容器，但镜像和 volume 还在，所以不用重新安装 Claude Code，也不一定需要重新登录。
+
+如果只想让 Claude Code 读取资料，而不希望它修改，可以把目录以只读方式挂载。上面的 `/data` 就是这样：
+
+```bash
+-v "$HOME/datasets:/data:ro"
+```
+
+其中 `:ro` 表示 read-only。这样 Claude Code 可以读实验数据、总结文件结构、解释结果，但不能直接修改 `/data` 里的文件。对于科研任务，这是比较稳妥的习惯：代码目录可以允许修改，原始数据目录尽量只读。
+
+需要注意，“本机目录”指的是运行 Docker daemon 的那台机器上的目录。如果你在自己的笔记本上运行 Docker，`$PWD` 是笔记本上的目录；如果你 SSH 到 Clab 云主机后在云主机里运行 Docker，`$PWD` 就是 Clab 云主机上的目录，而不是你笔记本上的目录。Claude Code 只能看到容器内文件系统，以及你用 `-v` 明确挂载进去的目录。
+
+不要一上来就把整个 home 目录或系统根目录挂进去，例如不要随便使用 `-v "$HOME:/host-home"` 或 `-v "/:/host"`。这样虽然方便，但等于把大量私人文件和系统文件暴露给 agent，误操作风险很高。更推荐的做法是：固定一个专门的工作区目录，只把本次任务真正需要的项目放进去。
+
 ## VS Code 和 Clab 协同
 
 ### 通过 Remote-SSH 插件连接 Clab
@@ -598,6 +729,8 @@ Claude Code 中的模型负责推理。Sonnet 适合大多数编码任务，Opus
 - `CLAUDE.md` 中写入的项目规则和长期说明。
 - 自动记忆中的项目模式和用户偏好。
 - 已配置的 MCP servers、skills、subagents、Claude in Chrome 等扩展。
+
+如果 Claude Code 运行在容器里，它的可见范围还会受到容器边界限制：没有被挂载进容器的本机文件夹，它通常看不到；被挂载为只读的目录，它可以读取但不能直接修改。
 
 这也是 Claude Code 和只看当前文件的代码补全工具不同的地方：它能跨文件理解项目，基于终端和工具完成端到端任务。
 
@@ -720,4 +853,3 @@ codex mcp get outline-lcpu
 再看服务是否可达：本地服务用 `curl` 检查端口，远端 OAuth 服务检查 `.well-known` metadata。最后看当前线程是否暴露对应的 `mcp__...` 工具，并优先用只读工具验证。
 
 需要区分两个状态：`enabled` 只说明配置启用；`mcp__...` 工具出现并能调用，才说明 MCP server 已经真正加载成功。
-
